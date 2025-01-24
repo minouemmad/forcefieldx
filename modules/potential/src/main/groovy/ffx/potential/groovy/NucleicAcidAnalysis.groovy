@@ -43,57 +43,40 @@ import ffx.potential.bonded.Atom
 import ffx.potential.bonded.NucleicAcidUtils
 import ffx.potential.bonded.Residue
 import ffx.potential.cli.PotentialScript
-import ffx.potential.utils.GetProteinFeatures
 import picocli.CommandLine.Command
-import picocli.CommandLine.Option
 import picocli.CommandLine.Parameters
 
 import static java.lang.String.format
 import static org.apache.commons.io.FilenameUtils.getBaseName
 import static org.apache.commons.math3.util.FastMath.toDegrees
+import static org.apache.commons.math3.util.FastMath.abs
+import static org.apache.commons.math3.util.FastMath.atan
+import static org.apache.commons.math3.util.FastMath.sin
+import static org.apache.commons.math3.util.FastMath.cos
 
-@Command(description = " Create a Feature Map for a given protein structure", name = "FeatureMap")
+@Command(description = "Nucleic Acid Analysis", name = "NucleicAcidAnalysis")
 class NucleicAcidAnalysis extends PotentialScript {
 
-//    @Option(names = ["--iP", "--includePolarity"], paramLabel = "false",
-//            description = "Include polarity change in feature map.")
-//    private boolean includePolarity = false
-
-    /**
-     * The final argument(s) should be one or more filenames.
-     */
     @Parameters(arity = "1", paramLabel = "file",
-            description = 'The atomic coordinate file in PDB or XYZ format, variant list file, and a free energy file')
+            description = 'The atomic coordinate file in PDB or XYZ format.')
     private List<String> filenames = null
 
     private List<Residue> residues
 
-    /**
-     * ffx.potential.FeatureMap constructor.
-     */
     NucleicAcidAnalysis() {
         this(new Binding())
     }
 
-    /**
-     * ffx.potential.FeatureMap constructor.
-     * @param binding The Groovy Binding to use.
-     */
     NucleicAcidAnalysis(Binding binding) {
         super(binding)
     }
 
-    /**
-     * ffx.potential.FeatureMap the script.
-     */
     @Override
     NucleicAcidAnalysis run() {
-        // Init the context and bind variables.
         if (!init()) {
             return null
         }
 
-        // Load the MolecularAssembly.
         activeAssembly = getActiveAssembly(filenames[0])
         if (activeAssembly == null) {
             logger.info(helpString())
@@ -101,38 +84,111 @@ class NucleicAcidAnalysis extends PotentialScript {
         }
 
         ForceFieldEnergy forceFieldEnergy = activeAssembly.getPotentialEnergy()
-
-        int nVars = forceFieldEnergy.getNumberOfVariables()
-        double[] x = new double[nVars]
+        double[] x = new double[forceFieldEnergy.getNumberOfVariables()]
         forceFieldEnergy.getCoordinates(x)
         forceFieldEnergy.energy(x)
 
         residues = activeAssembly.getResidueList()
+        println("Residue    Name      V0         V1         V2         V3         V4         P          νmax       χ          γ          TYPE")
+        println("------------------------------------------------------------------------------------------------------------------------------")
 
         for (Residue residue : residues) {
-            NucleicAcidUtils.NucleicAcid3 nucleicAcid = residue.getNucleicAcid3()
-            Atom o4p = residue.getAtomByName("O4'", true)
-            Atom c1p = residue.getAtomByName("C1'", true)
-            Atom baseN = null
-            Atom baseC = null
-            if (nucleicAcid == NucleicAcidUtils.NucleicAcid3.DAD || nucleicAcid == NucleicAcidUtils.NucleicAcid3.DGU) {
-                baseN = residue.getAtomByName("N9", true)
-                baseC = residue.getAtomByName("C4", true)
-            } else if (nucleicAcid == NucleicAcidUtils.NucleicAcid3.DCY || nucleicAcid == NucleicAcidUtils.NucleicAcid3.DTY) {
-                baseN = residue.getAtomByName("N1", true)
-                baseC = residue.getAtomByName("C2", true)
+            def v0 = getDihedral(residue, "C2'", "C1'", "O4'", "C4'")
+            def v1 = getDihedral(residue, "O4'", "C1'", "C2'", "C3'")
+            def v2 = getDihedral(residue, "C1'", "C2'", "C3'", "C4'")
+            def v3 = getDihedral(residue, "O4'", "C4'", "C3'", "C2'")
+            def v4 = getDihedral(residue, "C1'", "O4'", "C4'", "C3'")
+            def chi = getDihedral(residue, "O4'", "C1'", "N9", "C4") ?: getDihedral(residue, "O4'", "C1'", "N1", "C2")
+            def gamma = getDihedral(residue, "O5'", "C5'", "C4'", "C3'")
+
+
+
+            // Calculate Pseudorotation parameters
+            Double P = (v0 != null && v1 != null && v3 != null && v4 != null && v2 != null) ? calculateP(v0, v1, v2, v3, v4) : null
+
+            if (P == null) {        
+                println("DEBUG: P could not be calculated for Residue Name=${residue.name}")
             }
 
-            if (o4p != null && c1p != null && baseN != null && baseC != null) {
-                double angle = DoubleMath.dihedralAngle(o4p.getXYZ(null), c1p.getXYZ(null), baseN.getXYZ(null), baseC.getXYZ(null))
-                double glyco = toDegrees(angle)
-                logger.info("RES : " + residue.name + " = " + glyco)
-            }
+            // Calculate νmax
+            double nuMax = (v2 != null && P != null) ? Math.abs(v2 / Math.cos(Math.toRadians(P))) : null
+
+            // Determine the type
+            String type = determineType(residue, P)
+
+            println(String.format("%-10s %-8s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s",
+                    residue.getResidueNumber(),
+                    residue.name,
+                    formatValue(v0), formatValue(v1), formatValue(v2),
+                    formatValue(v3), formatValue(v4),
+                    formatValue(P), formatValue(nuMax),
+                    formatValue(chi), formatValue(gamma),
+                    type
+            ))
         }
 
         return this
     }
+
+    private Double getDihedral(Residue residue, String atom1, String atom2, String atom3, String atom4) {
+        Atom a1 = residue.getAtomByName(atom1, true)
+        Atom a2 = residue.getAtomByName(atom2, true)
+        Atom a3 = residue.getAtomByName(atom3, true)
+        Atom a4 = residue.getAtomByName(atom4, true)
+
+        if (a1 != null && a2 != null && a3 != null && a4 != null) {
+            return toDegrees(DoubleMath.dihedralAngle(a1.getXYZ(null), a2.getXYZ(null), a3.getXYZ(null), a4.getXYZ(null)))
+        }
+        return null
+    }
+
+    private String formatValue(Double value) {
+        return value != null ? String.format("%.2f", value) : "N/A"
+    }
+
+    private static double calculateP(double v0, double v1, double v2, double v3, double v4) {
+        // Calculate p
+        double sin36 = Math.sin(Math.toRadians(36))
+        double sin72 = Math.sin(Math.toRadians(72))
+        double denominator = 2 * v2 * (sin36 + sin72)
+        double p = ((v4 - v0) - (v3 - v1)) / denominator
+
+        // Calculate P
+        double P;
+        if (v2 < 0) {
+            P = Math.toDegrees(Math.atan(p)) + 180.0
+        } else if (p < 0) {
+            P = Math.toDegrees(Math.atan(p)) + 360.0
+        } else {
+            P = Math.toDegrees(Math.atan(p))
+        }
+        return P
+    }
+    private String determineType(Residue residue, Double P) {
+        if (P == null) return "Unknown"
+
+        // Determine the base
+        String base = switch (residue.name) {
+            case "DAD" -> "Ade"
+            case "DGU" -> "Gua"
+            case "DCY" -> "Cyt"
+            case "DTY" -> "Thy"
+            // case "U" -> "Ura"
+            default -> "Unknown"
+        }
+        if (!["DAD", "DGU", "DCY", "DTY"].contains(residue.name)) {
+            println("DEBUG: Unknown residue name '${residue.name}'")
+        }
+
+
+        // Determine sugar pucker conformation
+        String sugarPucker = "Unknown"
+        if (abs(P - 18) < 10) {
+            sugarPucker = "C3'-endo"
+        } else if (abs(P - 162) < 10) {
+            sugarPucker = "C2'-endo"
+        }
+
+        return base + ", " + sugarPucker
+    }
 }
-
-
-

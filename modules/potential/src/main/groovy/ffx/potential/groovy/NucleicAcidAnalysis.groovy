@@ -106,25 +106,23 @@ class NucleicAcidAnalysis extends PotentialScript {
             // Calculate Pseudorotation parameters
             Double P = (v0 != null && v1 != null && v3 != null && v4 != null && v2 != null) ? calculateP(v0, v1, v2, v3, v4) : null
 
-            if (P == null) {        
-                println("DEBUG: P could not be calculated for Residue Name=${residue.name}")
-            }
-
             // Calculate νmax
             double nuMax = (v2 != null && P != null) ? Math.abs(v2 / Math.cos(Math.toRadians(P))) : null
 
+
             // Determine the type
             String type = determineType(residue, P)
-
-            println(String.format("%-10s %-8s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s",
-                    residue.getResidueNumber(),
-                    residue.name,
-                    formatValue(v0), formatValue(v1), formatValue(v2),
-                    formatValue(v3), formatValue(v4),
-                    formatValue(P), formatValue(nuMax),
-                    formatValue(chi), formatValue(gamma),
-                    type
+            // Align the format string with the headers
+            println(String.format("%-10s %-8s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-12s",
+                residue.getResidueNumber(),
+                residue.name,
+                formatValue(v0), formatValue(v1), formatValue(v2),
+                formatValue(v3), formatValue(v4),
+                formatValue(P), formatValue(nuMax),
+                formatValue(chi), formatValue(gamma),
+                type 
             ))
+
         }
 
         return this
@@ -173,7 +171,7 @@ class NucleicAcidAnalysis extends PotentialScript {
             case "DGU" -> "Gua"
             case "DCY" -> "Cyt"
             case "DTY" -> "Thy"
-            // case "U" -> "Ura"
+            case "URA" -> "Ura";            
             default -> "Unknown"
         }
         if (!["DAD", "DGU", "DCY", "DTY"].contains(residue.name)) {
@@ -183,9 +181,25 @@ class NucleicAcidAnalysis extends PotentialScript {
 
         // Determine sugar pucker conformation
         String sugarPucker = "Unknown"
-        if (abs(P - 18) < 10) {
+        if (P >= 0 && P < 36) {
             sugarPucker = "C3'-endo"
-        } else if (abs(P - 162) < 10) {
+        } else if (P >= 36 && P < 72) {
+            sugarPucker = "C4'-endo"
+        } else if (P >= 72 && P < 108) {
+            sugarPucker = "O4'-endo"
+        } else if (P >= 108 && P < 144) {
+            sugarPucker = "C1'-exo"
+        } else if (P >= 144 && P < 180) {
+            sugarPucker = "C2'-endo"
+        } else if (P >= 180 && P < 216) {
+            sugarPucker = "C3'-exo"
+        } else if (P >= 216 && P < 252) {
+            sugarPucker = "C4'-exo"
+        } else if (P >= 252 && P < 288) {
+            sugarPucker = "O4'-exo"
+        } else if (P >= 288 && P < 324) {
+            sugarPucker = "C1'-endo"
+        } else if (P >= 324 || P < 0) {
             sugarPucker = "C2'-endo"
         }
 

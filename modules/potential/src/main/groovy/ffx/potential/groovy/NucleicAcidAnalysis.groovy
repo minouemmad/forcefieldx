@@ -89,8 +89,8 @@ class NucleicAcidAnalysis extends PotentialScript {
         forceFieldEnergy.energy(x)
 
         residues = activeAssembly.getResidueList()
-        println("Residue    Name      V0         V1         V2         V3         V4         P          νmax       χ          γ          TYPE")
-        println("------------------------------------------------------------------------------------------------------------------------------")
+        println("Residue    Name      V0         V1         V2         V3         V4         P          νmax       χ          γ          α          β          δ          ε          ζ          Sugar pucker                  Stage")
+        println("------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
 
         for (Residue residue : residues) {
             def v0 = getDihedral(residue, "C2'", "C1'", "O4'", "C4'")
@@ -98,31 +98,51 @@ class NucleicAcidAnalysis extends PotentialScript {
             def v2 = getDihedral(residue, "C1'", "C2'", "C3'", "C4'")
             def v3 = getDihedral(residue, "O4'", "C4'", "C3'", "C2'")
             def v4 = getDihedral(residue, "C1'", "O4'", "C4'", "C3'")
-            def chi = getDihedral(residue, "O4'", "C1'", "N9", "C4") ?: getDihedral(residue, "O4'", "C1'", "N1", "C2")
+            def chi = getDihedral(residue, "O4'", "C1'", "N9", "C4") ?: getDihedral(residue, "O4'", "C1'", "N1", "C2") // The glycosidic angle is influenced by the δ angle and plays a role in the overall structural transition.
+            // In B-form DNA, χ is typically around –160° to –120° (or 200°–240°).
+            // In A-form DNA, χ is typically around –60° to –90° (or 270°–300°).
+
             def gamma = getDihedral(residue, "O5'", "C5'", "C4'", "C3'")
 
+            // Calculate backbone torsion angles(specific type of dihedral angle)
+            def alpha = getDihedral(residue, "O3'", "P", "O5'", "C5'") // Rotation around the P–O5' bond.
+            def beta = getDihedral(residue, "P", "O5'", "C5'", "C4'") // Rotation around the O5'–C5' bond.
+            def delta = getDihedral(residue, "C5'", "C4'", "C3'", "O3'") // Rotation around the C4'–C3' bond. A drop in this angle triggers the rotation of the glycosidic bond and subsequent sugar pucker conversion.
+            // In B-form DNA, δ is typically around 140°–150°.
+            // In A-form DNA, δ is typically around 80°–90°.
 
+            def epsilon = getDihedral(residue, "C4'", "C3'", "O3'", "P") // Rotation around the C3'–O3' bond.
+            def zeta = getDihedral(residue, "C3'", "O3'", "P", "O5'") // Rotation around the O3'–P bond.
 
-            // Calculate Pseudorotation parameters
+            // Calculate pseudorotational phase angle
             Double P = (v0 != null && v1 != null && v3 != null && v4 != null && v2 != null) ? calculateP(v0, v1, v2, v3, v4) : null
+            // C2′-endo (B-form): Around 162°.
+            // C3′-endo (A-form): Around 18°.
 
-            // Calculate νmax
+
+            // Calculate νmax (puckering amplitude)
             double nuMax = (v2 != null && P != null) ? Math.abs(v2 / Math.cos(Math.toRadians(P))) : null
-
 
             // Determine the type
             String type = determineType(residue, P)
-            // Align the format string with the headers
-            println(String.format("%-10s %-8s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-12s",
-                residue.getResidueNumber(),
-                residue.name,
-                formatValue(v0), formatValue(v1), formatValue(v2),
-                formatValue(v3), formatValue(v4),
-                formatValue(P), formatValue(nuMax),
-                formatValue(chi), formatValue(gamma),
-                type 
-            ))
 
+            // Determine the current stage of the B-to-A transition
+            String stage = determineStage(delta, chi, P)
+
+            // Align the format string with the headers
+            println(String.format("%-10s %-8s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-14s %-18s",
+                    residue.getResidueNumber(),
+                    residue.name,
+                    formatValue(v0), formatValue(v1), formatValue(v2),
+                    formatValue(v3), formatValue(v4),
+                    formatValue(P), formatValue(nuMax),
+                    formatValue(chi), formatValue(gamma),
+                    formatValue(alpha), formatValue(beta),
+                    formatValue(delta), formatValue(epsilon),
+                    formatValue(zeta),
+                    type,
+                    stage
+            ))
         }
 
         return this
@@ -162,6 +182,7 @@ class NucleicAcidAnalysis extends PotentialScript {
         }
         return P
     }
+
     private String determineType(Residue residue, Double P) {
         if (P == null) return "Unknown"
 
@@ -171,13 +192,12 @@ class NucleicAcidAnalysis extends PotentialScript {
             case "DGU" -> "Gua"
             case "DCY" -> "Cyt"
             case "DTY" -> "Thy"
-            case "URA" -> "Ura";            
+            case "URA" -> "Ura"
             default -> "Unknown"
         }
         if (!["DAD", "DGU", "DCY", "DTY"].contains(residue.name)) {
             println("DEBUG: Unknown residue name '${residue.name}'")
         }
-
 
         // Determine sugar pucker conformation
         String sugarPucker = "Unknown"
@@ -204,5 +224,46 @@ class NucleicAcidAnalysis extends PotentialScript {
         }
 
         return base + ", " + sugarPucker
+    }
+
+    private String determineStage(Double delta, Double chi, Double P) {
+        /*
+        * Uses the δ angle, χ angle, and pseudorotation angle (P) to classify the current state into one of the three stages of the B-to-A transition.
+        */
+
+        if (delta == null || chi == null || P == null) return "Unknown"
+
+        // Stage 1: Slide and Roll change (initial base pair movement)
+        // The value 120.0 was chosen as a midpoint to distinguish between B-form-like (higher δ) and A-form-like (lower δ) states.
+        // The value 200.0(-160) was chosen to distinguish between B-form-like (higher χ) and A-form-like (lower χ) states.
+        if (delta > 120.0 && chi > -160) {
+            return "Stage 1: Slide and Roll Change"
+        }
+        // Stage 2: Backbone and sugar pucker change
+        else if (delta < 120.0 && P >= 0 && P < 180.0) {
+            // This range includes C3′-endo and other pucker states closer to A-form
+            return "Stage 2: Backbone and Sugar Pucker Change"
+        }
+        // Stage 3: Roll and inclination to finish the transition
+        else if (delta < 120.0 && P >= 180.0 && P < 360.0) {
+            // This range includes C2′-endo and other pucker states closer to B-form.
+            return "Stage 3: Roll and Inclination to Finish Transition"
+        }
+
+        // The thresholds (120.0 for δ, 200.0 for χ, and 180.0 for P) are approximate midpoints between typical B-form and A-form values.
+        
+        // Stage 1: Slide and Roll Change:
+        // The δ angle is still high (B-form-like), and the χ angle is high (B-form-like).
+        // This stage involves initial base pair movement and groove width changes.
+
+        // Stage 2: Backbone and Sugar Pucker Change:
+        // The δ angle drops (backbone deformation), and the pseudorotation angle shifts toward A-form (C3′-endo).
+        // This stage involves backbone deformation and sugar pucker conversion.
+
+        // Stage 3: Roll and Inclination to Finish Transition:
+        // The δ angle remains low (A-form-like), and the pseudorotation angle is in the A-form range.
+        // This stage involves final adjustments to Roll and Inclination to complete the transition.
+
+        return "Unknown"
     }
 }

@@ -130,8 +130,8 @@ class Solvator extends PotentialScript {
           description = "Specify a random seed for ion placement.")
   private String seedString = null
 
-  @Option(names = ['--pH', '--constantPH'], paramLabel = '7.4',
-          description = 'pH value for the system. If set, titration states will be initialized based on this pH.')
+  @Option(names = ['--pH', '--constantPH'], paramLabel = 'pH',
+          description = 'Optional pH value for the system. If provided, titration states will be initialized based on this pH.')
   private Double pH = null
 
   /**

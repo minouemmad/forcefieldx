@@ -103,9 +103,9 @@ public class FreeEnergyDifferenceReporter {
   private final int nIterations;
 
   /**
-   * Maximum number of trials to be used for bootstrap.
+   * Minimum number of trials to be used for bootstrap.
    */
-  final long MAX_BOOTSTRAP_TRIALS = 100000L;
+  final long MIN_BOOTSTRAP_TRIALS = 1000L;
 
   /**
    * Free energy difference from forward FEP.
@@ -148,6 +148,19 @@ public class FreeEnergyDifferenceReporter {
    */
   private double barBSTotalEntropyChange;
 
+  /**
+   * Report Free Energy Differences based on a series of states.
+   *
+   * @param nStates      The number of states.
+   * @param lambdaValues The lambda value for each state.
+   * @param temperature  The temperature for each state.
+   * @param eps          The BAR convergence criteria.
+   * @param nIterations  The BAR maximum number of iterations.
+   * @param energiesLow  The energy for each snapshot from state L evaluated at L - dL.
+   * @param energiesAt   The energy for each snapshot from state L evaluated at L.
+   * @param energiesHigh The energy for each snapshot from state L evaluated at L + dL.
+   * @param volume       The volume for each snapshot from state L.
+   */
   public FreeEnergyDifferenceReporter(int nStates, double[] lambdaValues, double[] temperature, double eps, int nIterations,
                                       double[][] energiesLow, double[][] energiesAt, double[][] energiesHigh, double[][] volume) {
     this.nStates = nStates;
@@ -190,8 +203,9 @@ public class FreeEnergyDifferenceReporter {
     EstimateBootstrapper backwardBS = new EstimateBootstrapper(bar.getInitialBackwardsGuess());
 
     int numSnapshots = energiesAt[0].length;
-    long bootstrap = min(MAX_BOOTSTRAP_TRIALS, numSnapshots);
-    logger.info(format(" Number of bootstrap trials: %d", numSnapshots));
+    int trials = (int) (1.0e8 / numSnapshots);
+    long bootstrap = min(MIN_BOOTSTRAP_TRIALS, trials);
+    logger.info(format(" Number of bootstrap trials: %d", bootstrap));
 
     long time = -System.nanoTime();
     forwardBS.bootstrap(bootstrap);
@@ -313,6 +327,8 @@ public class FreeEnergyDifferenceReporter {
 
   /**
    * Free energy difference from forward FEP.
+   *
+   * @return the forward total free energy difference.
    */
   public double getForwardTotalFEDifference() {
     return forwardTotalFEDifference;
@@ -320,6 +336,8 @@ public class FreeEnergyDifferenceReporter {
 
   /**
    * Enthalpy difference from forward FEP.
+   *
+   * @return the forward total enthalpy change.
    */
   public double getForwardTotalEnthalpyChange() {
     return forwardTotalEnthalpyChange;
@@ -327,6 +345,8 @@ public class FreeEnergyDifferenceReporter {
 
   /**
    * Entropy difference from forward FEP.
+   *
+   * @return the forward total entropy change.
    */
   public double getForwardTotalEntropyChange() {
     return forwardTotalEntropyChange;
@@ -334,6 +354,8 @@ public class FreeEnergyDifferenceReporter {
 
   /**
    * Free energy difference from backward FEP.
+   *
+   * @return the backward total free energy difference.
    */
   public double getBackwardTotalFEDifference() {
     return backwardTotalFEDifference;
@@ -341,6 +363,8 @@ public class FreeEnergyDifferenceReporter {
 
   /**
    * Enthalpy difference from backward FEP.
+   *
+   * @return the backward total enthalpy change.
    */
   public double getBackwardTotalEnthalpyChange() {
     return backwardTotalEnthalpyChange;
@@ -348,6 +372,8 @@ public class FreeEnergyDifferenceReporter {
 
   /**
    * Entropy difference from backward FEP.
+   *
+   * @return the backward total entropy change.
    */
   public double getBackwardTotalEntropyChange() {
     return backwardTotalEntropyChange;
@@ -355,6 +381,8 @@ public class FreeEnergyDifferenceReporter {
 
   /**
    * Free energy difference from BAR.
+   *
+   * @return the BAR iteration total free energy difference.
    */
   public double getBarIterTotalFEDiff() {
     return barIterTotalFEDiff;
@@ -362,6 +390,8 @@ public class FreeEnergyDifferenceReporter {
 
   /**
    * Free energy difference from BAR using boot-strapping.
+   *
+   * @return the BAR boot-strap total free energy difference.
    */
   public double getBarBSTotalFEDiff() {
     return barBSTotalFEDiff;
@@ -369,6 +399,8 @@ public class FreeEnergyDifferenceReporter {
 
   /**
    * Enthalpy difference from BAR.
+   *
+   * @return the BAR boot-strap total enthalpy change.
    */
   public double getBarBSTotalEnthalpyChange() {
     return barBSTotalEnthalpyChange;
@@ -376,6 +408,8 @@ public class FreeEnergyDifferenceReporter {
 
   /**
    * Entropy difference from BAR.
+   *
+   * @return the BAR boot-strap total entropy change.
    */
   public double getBarBSTotalEntropyChange() {
     return barBSTotalEntropyChange;

@@ -151,6 +151,8 @@ public class MolecularAssembly extends MSGroup {
   private boolean visible = false;
   private FractionalMode fractionalMode = FractionalMode.MOLECULE;
   private double[][] fractionalCoordinates;
+  private boolean titrateConformer = false;
+  private Atom atomInitial;
 
   /**
    * Constructor for MolecularAssembly.
@@ -222,6 +224,37 @@ public class MolecularAssembly extends MSGroup {
       if (atom.isModRes()) {
         return getResidue(atom, true, Residue.ResidueType.AA);
       } else if (!atom.isHetero()) {
+        String resName = atom.getResidueName();
+        switch (resName){
+          case "HIS":
+          case "HIE":
+          case "HID":
+          case "ASP":
+          case "ASH":
+          case "GLU":
+          case "GLH":
+          case "LYS":
+          case "LYD":
+            for (Residue residue: getResidueList()){
+              if(residue.getResidueNumber() == atom.getResidueNumber()){
+                for (Atom currentAtom : residue.getAtomList()) {
+                  if (atom.getResidueNumber() == currentAtom.getResidueNumber() && atom.getChainID() == currentAtom.getChainID()
+                          && atom.getAltLoc() != currentAtom.getAltLoc() && !atom.getResidueName().equals(currentAtom.getResidueName()) &&
+                          atom.getName().equals(currentAtom.getName())) {
+                    titrateConformer = true;
+                    atomInitial = currentAtom;
+                    return getResidue(atom, true);
+                  } else {
+                    titrateConformer = false;
+                    atomInitial = null;
+                  }
+                }
+              }
+            }
+            break;
+          default:
+            break;
+        }
         return getResidue(atom, true);
       } else {
         return getMolecule(atom, true);
@@ -1997,8 +2030,19 @@ public class MolecularAssembly extends MSGroup {
     if (polymer == null) {
       return null;
     }
-    Residue res = polymer.getResidue(resName, resNum, create, defaultRT);
+
+    Residue res;
+    if(titrateConformer){
+      res = polymer.getResidue(atomInitial.getResidueName(), atomInitial.getResidueNumber(), create, defaultRT);
+      res.setName(atom.getResidueName());
+    } else {
+      res = polymer.getResidue(resName, resNum, create, defaultRT);
+    }
     if (create && res != null) {
+      res.setTitrateConformers(titrateConformer);
+      if(titrateConformer){
+        res.setAtomInitial(atomInitial);
+      }
       return (Atom) res.addMSNode(atom);
     }
     return null;

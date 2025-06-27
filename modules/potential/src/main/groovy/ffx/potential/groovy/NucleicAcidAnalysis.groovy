@@ -112,7 +112,6 @@ class NucleicAcidAnalysis extends PotentialScript {
 
       if (numModels == 1 && allTorsions) {
         // Single frame - output all information
-        printHeader()
         analyzeAndPrintResidues()
       } else {
         // Multiple frames (ARC file) - output only pseudorotation and sugar pucker per frame
@@ -173,46 +172,54 @@ class NucleicAcidAnalysis extends PotentialScript {
     return this
   }
 
-  private void printHeader() {
-    println("Residue    Name      V0         V1         V2         V3         V4         P          νmax       χ          γ          α          β          δ          ε          ζ          Sugar pucker                  Stage")
-    println("------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
-  }
+private void analyzeAndPrintResidues() {
+    // Print header with the new "DNA Form" column
+    println("Residue    Name      V0         V1         V2         V3         V4         P          νmax       χ          γ          α          β          δ          ε          ζ          Sugar pucker                  Stage                DNA Form")
+    println("------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
 
-  private void analyzeAndPrintResidues() {
-    for (Residue residue : residues) {
-      def v0 = getDihedral(residue, "C2'", "C1'", "O4'", "C4'")
-      def v1 = getDihedral(residue, "O4'", "C1'", "C2'", "C3'")
-      def v2 = getDihedral(residue, "C1'", "C2'", "C3'", "C4'")
-      def v3 = getDihedral(residue, "O4'", "C4'", "C3'", "C2'")
-      def v4 = getDihedral(residue, "C1'", "O4'", "C4'", "C3'")
-      def chi = getDihedral(residue, "O4'", "C1'", "N9", "C4") ?: getDihedral(residue, "O4'", "C1'", "N1", "C2")
-      def gamma = getDihedral(residue, "O5'", "C5'", "C4'", "C3'")
-      def alpha = getDihedral(residue, "O3'", "P", "O5'", "C5'")
-      def beta = getDihedral(residue, "P", "O5'", "C5'", "C4'")
-      def delta = getDihedral(residue, "C5'", "C4'", "C3'", "O3'")
-      def epsilon = getDihedral(residue, "C4'", "C3'", "O3'", "P")
-      def zeta = getDihedral(residue, "C3'", "O3'", "P", "O5'")
+    for (int i = 0; i < residues.size(); i++) {
+        Residue residue = residues[i]
 
-      Double P = (v0 != null && v1 != null && v3 != null && v4 != null && v2 != null) ? calculateP(v0, v1, v2, v3, v4) : null
-      double nuMax = (v2 != null && P != null) ? Math.abs(v2 / Math.cos(Math.toRadians(P))) : null
-      String type = determineType(residue, P)
-      String stage = determineStage(delta, chi, P)
+        // Calculate torsional angles
+        def v0 = getDihedral(residue, "C2'", "C1'", "O4'", "C4'")
+        def v1 = getDihedral(residue, "O4'", "C1'", "C2'", "C3'")
+        def v2 = getDihedral(residue, "C1'", "C2'", "C3'", "C4'")
+        def v3 = getDihedral(residue, "O4'", "C4'", "C3'", "C2'")
+        def v4 = getDihedral(residue, "C1'", "O4'", "C4'", "C3'")
+        def chi = getDihedral(residue, "O4'", "C1'", "N9", "C4") ?: getDihedral(residue, "O4'", "C1'", "N1", "C2")
+        def gamma = getDihedral(residue, "O5'", "C5'", "C4'", "C3'")
+        def alpha = getDihedral(residue, "O3'", "P", "O5'", "C5'")
+        def beta = getDihedral(residue, "P", "O5'", "C5'", "C4'")
+        def delta = getDihedral(residue, "C5'", "C4'", "C3'", "O3'")
+        def epsilon = getDihedral(residue, "C4'", "C3'", "O3'", "P")
+        def zeta = getDihedral(residue, "C3'", "O3'", "P", "O5'")
 
-      println(format("%-10s %-8s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-14s %-18s",
-          residue.getResidueNumber(),
-          residue.name,
-          formatValue(v0), formatValue(v1), formatValue(v2),
-          formatValue(v3), formatValue(v4),
-          formatValue(P), formatValue(nuMax),
-          formatValue(chi), formatValue(gamma),
-          formatValue(alpha), formatValue(beta),
-          formatValue(delta), formatValue(epsilon),
-          formatValue(zeta),
-          type,
-          stage
-      ))
+        // Calculate pseudorotation phase angle (P) and νmax
+        Double P = (v0 != null && v1 != null && v3 != null && v4 != null && v2 != null) ? calculateP(v0, v1, v2, v3, v4) : null
+        double nuMax = (v2 != null && P != null) ? Math.abs(v2 / Math.cos(Math.toRadians(P))) : null
+
+        // Determine sugar pucker, stage, and DNA form
+        String sugarPucker = determineSugarPucker(P)
+        String stage = determineStage(delta, chi, P)
+        String dnaForm = determineDNAForm(residue, P, chi, residues, i)
+
+        // Print all data in a formatted row
+        println(format("%-10s %-8s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-14s %-18s %-18s",
+            residue.getResidueNumber(),
+            residue.name,
+            formatValue(v0), formatValue(v1), formatValue(v2),
+            formatValue(v3), formatValue(v4),
+            formatValue(P), formatValue(nuMax),
+            formatValue(chi), formatValue(gamma),
+            formatValue(alpha), formatValue(beta),
+            formatValue(delta), formatValue(epsilon),
+            formatValue(zeta),
+            sugarPucker,
+            stage,
+            dnaForm
+        ))
     }
-  }
+}
 
   private static Double getDihedral(Residue residue, String atom1, String atom2, String atom3, String atom4) {
     try {
@@ -326,4 +333,54 @@ class NucleicAcidAnalysis extends PotentialScript {
     }
     return "Unknown"
   }
+
+  /**
+  * Determines the DNA form (A, B, or Z) for a given residue.
+  */
+  private static String determineDNAForm(Residue residue, Double P, Double chi, List<Residue> residues, int index) {
+    if (P == null || chi == null) return "Unknown"
+
+    String sugarPucker = determineSugarPucker(P)
+    boolean isC2Endo = (sugarPucker == "C2'-endo")
+    boolean isC3Endo = (sugarPucker == "C3'-endo")
+    boolean isSyn = (chi > -90 && chi < 90) // Approximate syn conformation (χ ~ 60° for Z-DNA)
+
+    // Check for Z-DNA (requires alternating CG sequence with alternating sugar pucker and syn/anti χ)
+    if (residues.size() > 1 && index > 0 && index < residues.size() - 1) {
+        Residue prev = residues[index - 1]
+        Residue next = residues[index + 1]
+        String currentBase = residue.name.toUpperCase()
+        String prevBase = prev.name.toUpperCase()
+        String nextBase = next.name.toUpperCase()
+
+        // Check if the sequence is alternating purine (G) and pyrimidine (C)
+        boolean isAlternatingCG = false
+        if ((currentBase == "DG" || currentBase == "G") && (prevBase == "DC" || prevBase == "C") && (nextBase == "DC" || nextBase == "C")) {
+            isAlternatingCG = true
+        } else if ((currentBase == "DC" || currentBase == "C") && (prevBase == "DG" || prevBase == "G") && (nextBase == "DG" || nextBase == "G")) {
+            isAlternatingCG = true
+        }
+
+        // Z-DNA: Alternating C (C2'-endo, anti) and G (C3'-endo, syn)
+        if (isAlternatingCG) {
+            if ((currentBase == "DG" || currentBase == "G") && isC3Endo && isSyn) {
+                return "Z-DNA"
+            } else if ((currentBase == "DC" || currentBase == "C") && isC2Endo && !isSyn) {
+                return "Z-DNA"
+            }
+        }
+    }
+
+    // A-DNA: C3'-endo sugar pucker
+    if (isC3Endo) {
+        return "A-DNA"
+    }
+    // B-DNA: C2'-endo sugar pucker
+    else if (isC2Endo) {
+        return "B-DNA"
+    }
+
+    return "Unknown"
+  }
+
 }

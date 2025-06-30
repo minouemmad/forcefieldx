@@ -172,54 +172,53 @@ class NucleicAcidAnalysis extends PotentialScript {
     return this
   }
 
-private void analyzeAndPrintResidues() {
-    // Print header with the new "DNA Form" column
-    println("Residue    Name      V0         V1         V2         V3         V4         P          νmax       χ          γ          α          β          δ          ε          ζ          Sugar pucker                  Stage                DNA Form")
-    println("------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
+  private void analyzeAndPrintResidues() {
+      // Print header with the new "DNA Form" column
+    println("Residue    Name      V0         V1         V2         V3         V4         P          νmax       χ          γ          α          β          δ          ε          ζ          Sugar pucker                  Stage                                    DNA Form")
+    println("-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
+      for (int i = 0; i < residues.size(); i++) {
+          Residue residue = residues[i]
 
-    for (int i = 0; i < residues.size(); i++) {
-        Residue residue = residues[i]
+          // Calculate torsional angles
+          def v0 = getDihedral(residue, "C2'", "C1'", "O4'", "C4'")
+          def v1 = getDihedral(residue, "O4'", "C1'", "C2'", "C3'")
+          def v2 = getDihedral(residue, "C1'", "C2'", "C3'", "C4'")
+          def v3 = getDihedral(residue, "O4'", "C4'", "C3'", "C2'")
+          def v4 = getDihedral(residue, "C1'", "O4'", "C4'", "C3'")
+          def chi = getDihedral(residue, "O4'", "C1'", "N9", "C4") ?: getDihedral(residue, "O4'", "C1'", "N1", "C2")
+          def gamma = getDihedral(residue, "O5'", "C5'", "C4'", "C3'")
+          def alpha = getDihedral(residue, "O3'", "P", "O5'", "C5'")
+          def beta = getDihedral(residue, "P", "O5'", "C5'", "C4'")
+          def delta = getDihedral(residue, "C5'", "C4'", "C3'", "O3'")
+          def epsilon = getDihedral(residue, "C4'", "C3'", "O3'", "P")
+          def zeta = getDihedral(residue, "C3'", "O3'", "P", "O5'")
 
-        // Calculate torsional angles
-        def v0 = getDihedral(residue, "C2'", "C1'", "O4'", "C4'")
-        def v1 = getDihedral(residue, "O4'", "C1'", "C2'", "C3'")
-        def v2 = getDihedral(residue, "C1'", "C2'", "C3'", "C4'")
-        def v3 = getDihedral(residue, "O4'", "C4'", "C3'", "C2'")
-        def v4 = getDihedral(residue, "C1'", "O4'", "C4'", "C3'")
-        def chi = getDihedral(residue, "O4'", "C1'", "N9", "C4") ?: getDihedral(residue, "O4'", "C1'", "N1", "C2")
-        def gamma = getDihedral(residue, "O5'", "C5'", "C4'", "C3'")
-        def alpha = getDihedral(residue, "O3'", "P", "O5'", "C5'")
-        def beta = getDihedral(residue, "P", "O5'", "C5'", "C4'")
-        def delta = getDihedral(residue, "C5'", "C4'", "C3'", "O3'")
-        def epsilon = getDihedral(residue, "C4'", "C3'", "O3'", "P")
-        def zeta = getDihedral(residue, "C3'", "O3'", "P", "O5'")
+          // Calculate pseudorotation phase angle (P) and νmax
+          Double P = (v0 != null && v1 != null && v3 != null && v4 != null && v2 != null) ? calculateP(v0, v1, v2, v3, v4) : null
+          double nuMax = (v2 != null && P != null) ? Math.abs(v2 / Math.cos(Math.toRadians(P))) : null
 
-        // Calculate pseudorotation phase angle (P) and νmax
-        Double P = (v0 != null && v1 != null && v3 != null && v4 != null && v2 != null) ? calculateP(v0, v1, v2, v3, v4) : null
-        double nuMax = (v2 != null && P != null) ? Math.abs(v2 / Math.cos(Math.toRadians(P))) : null
+          // Determine sugar pucker, stage, and DNA form
+          String sugarPucker = determineSugarPucker(P)
+          String stage = determineStage(delta, chi, P)
+          String dnaForm = determineDNAForm(residue, P, chi, residues, i)
 
-        // Determine sugar pucker, stage, and DNA form
-        String sugarPucker = determineSugarPucker(P)
-        String stage = determineStage(delta, chi, P)
-        String dnaForm = determineDNAForm(residue, P, chi, residues, i)
-
-        // Print all data in a formatted row
-        println(format("%-10s %-8s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-14s %-18s %-18s",
-            residue.getResidueNumber(),
-            residue.name,
-            formatValue(v0), formatValue(v1), formatValue(v2),
-            formatValue(v3), formatValue(v4),
-            formatValue(P), formatValue(nuMax),
-            formatValue(chi), formatValue(gamma),
-            formatValue(alpha), formatValue(beta),
-            formatValue(delta), formatValue(epsilon),
-            formatValue(zeta),
-            sugarPucker,
-            stage,
-            dnaForm
-        ))
-    }
-}
+          // Print all data in a formatted row with more space between last two columns
+          println(format("%-10s %-8s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-14s %-38s %-18s",
+              residue.getResidueNumber(),
+              residue.name,
+              formatValue(v0), formatValue(v1), formatValue(v2),
+              formatValue(v3), formatValue(v4),
+              formatValue(P), formatValue(nuMax),
+              formatValue(chi), formatValue(gamma),
+              formatValue(alpha), formatValue(beta),
+              formatValue(delta), formatValue(epsilon),
+              formatValue(zeta),
+              sugarPucker,
+              stage,
+              dnaForm
+          ))
+      }
+  }
 
   private static Double getDihedral(Residue residue, String atom1, String atom2, String atom3, String atom4) {
     try {
@@ -340,47 +339,34 @@ private void analyzeAndPrintResidues() {
   private static String determineDNAForm(Residue residue, Double P, Double chi, List<Residue> residues, int index) {
     if (P == null || chi == null) return "Unknown"
 
+    // Convert P to 0-360 range if needed
+    double pAngle = P
+
     String sugarPucker = determineSugarPucker(P)
     boolean isC2Endo = (sugarPucker == "C2'-endo")
     boolean isC3Endo = (sugarPucker == "C3'-endo")
-    boolean isSyn = (chi > -90 && chi < 90) // Approximate syn conformation (χ ~ 60° for Z-DNA)
 
-    // Check for Z-DNA (requires alternating CG sequence with alternating sugar pucker and syn/anti χ)
-    if (residues.size() > 1 && index > 0 && index < residues.size() - 1) {
-        Residue prev = residues[index - 1]
-        Residue next = residues[index + 1]
-        String currentBase = residue.name.toUpperCase()
-        String prevBase = prev.name.toUpperCase()
-        String nextBase = next.name.toUpperCase()
-
-        // Check if the sequence is alternating purine (G) and pyrimidine (C)
-        boolean isAlternatingCG = false
-        if ((currentBase == "DG" || currentBase == "G") && (prevBase == "DC" || prevBase == "C") && (nextBase == "DC" || nextBase == "C")) {
-            isAlternatingCG = true
-        } else if ((currentBase == "DC" || currentBase == "C") && (prevBase == "DG" || prevBase == "G") && (nextBase == "DG" || nextBase == "G")) {
-            isAlternatingCG = true
-        }
-
-        // Z-DNA: Alternating C (C2'-endo, anti) and G (C3'-endo, syn)
-        if (isAlternatingCG) {
-            if ((currentBase == "DG" || currentBase == "G") && isC3Endo && isSyn) {
-                return "Z-DNA"
-            } else if ((currentBase == "DC" || currentBase == "C") && isC2Endo && !isSyn) {
-                return "Z-DNA"
-            }
-        }
-    }
-
-    // A-DNA: C3'-endo sugar pucker
+    // First check for A-DNA (C3'-endo)
     if (isC3Endo) {
-        return "A-DNA"
-    }
-    // B-DNA: C2'-endo sugar pucker
-    else if (isC2Endo) {
-        return "B-DNA"
+        return "Most likely A-DNA"
     }
 
-    return "Unknown"
-  }
+    // Then check B-DNA ranges
+    boolean inBLikelyRange = (pAngle <= 210 && pAngle >= 90)
+    boolean inBMaybeRange = (pAngle >= 30 && pAngle < 90) || (pAngle <= 240 && pAngle > 210)
+
+    if (inBLikelyRange) {
+        if (isC2Endo) {
+            return "Very likely B-DNA"
+        } else {
+            return "Likely B-DNA"
+        }
+    } else if (inBMaybeRange) {
+        return "Maybe B-DNA"
+    }
+
+    // Default case
+    return "Not B or A form"
+}
 
 }

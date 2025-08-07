@@ -39,6 +39,7 @@ package ffx.potential.openmm;
 
 import ffx.openmm.Force;
 import ffx.openmm.PeriodicTorsionForce;
+import ffx.potential.ForceFieldEnergy;
 import ffx.potential.bonded.ImproperTorsion;
 import ffx.potential.parameters.ImproperTorsionType;
 
@@ -56,8 +57,6 @@ public class ImproperTorsionForce extends PeriodicTorsionForce {
 
   private static final Logger logger = Logger.getLogger(ImproperTorsionForce.class.getName());
 
-  private double lambdaTorsion = 1.0;
-
   /**
    * Create an OpenMM Improper Torsion Force.
    *
@@ -72,10 +71,10 @@ public class ImproperTorsionForce extends PeriodicTorsionForce {
     }
 
     for (ImproperTorsion improperTorsion : improperTorsions) {
-      int a1 = improperTorsion.getAtom(0).getXyzIndex() - 1;
-      int a2 = improperTorsion.getAtom(1).getXyzIndex() - 1;
-      int a3 = improperTorsion.getAtom(2).getXyzIndex() - 1;
-      int a4 = improperTorsion.getAtom(3).getXyzIndex() - 1;
+      int a1 = improperTorsion.getAtom(0).getArrayIndex();
+      int a2 = improperTorsion.getAtom(1).getArrayIndex();
+      int a3 = improperTorsion.getAtom(2).getArrayIndex();
+      int a4 = improperTorsion.getAtom(3).getArrayIndex();
       ImproperTorsionType type = improperTorsion.improperType;
       double forceConstant = OpenMM_KJPerKcal * type.impTorUnit * improperTorsion.scaleFactor * type.k;
       addTorsion(a1, a2, a3, a4, type.periodicity, type.phase * OpenMM_RadiansPerDegree, forceConstant);
@@ -88,12 +87,44 @@ public class ImproperTorsionForce extends PeriodicTorsionForce {
   }
 
   /**
-   * Set the lambda torsion scale factor.
+   * Create a Dual Topology OpenMM Improper Torsion Force.
    *
-   * @param lambdaTorsion The lambda torsion scale factor.
+   * @param topology The topology index for the OpenMM System.
+   * @param openMMDualTopologyEnergy The OpenMMDualTopologyEnergy instance.
    */
-  public void setLambdaTorsion(double lambdaTorsion) {
-    this.lambdaTorsion = lambdaTorsion;
+  public ImproperTorsionForce(int topology, OpenMMDualTopologyEnergy openMMDualTopologyEnergy) {
+    ForceFieldEnergy forceFieldEnergy = openMMDualTopologyEnergy.getForceFieldEnergy(topology);
+    ImproperTorsion[] improperTorsions = forceFieldEnergy.getImproperTorsions();
+    if (improperTorsions == null || improperTorsions.length < 1) {
+      // Clean up the memory allocated by the OpenMMPeriodicTorsionForce constructor.
+      destroy();
+      return;
+    }
+
+    double scale = openMMDualTopologyEnergy.getTopologyScale(topology);
+
+    for (ImproperTorsion improperTorsion : improperTorsions) {
+      int a1 = improperTorsion.getAtom(0).getArrayIndex();
+      int a2 = improperTorsion.getAtom(1).getArrayIndex();
+      int a3 = improperTorsion.getAtom(2).getArrayIndex();
+      int a4 = improperTorsion.getAtom(3).getArrayIndex();
+      a1 = openMMDualTopologyEnergy.mapToDualTopologyIndex(topology, a1);
+      a2 = openMMDualTopologyEnergy.mapToDualTopologyIndex(topology, a2);
+      a3 = openMMDualTopologyEnergy.mapToDualTopologyIndex(topology, a3);
+      a4 = openMMDualTopologyEnergy.mapToDualTopologyIndex(topology, a4);
+      ImproperTorsionType type = improperTorsion.improperType;
+      double forceConstant = OpenMM_KJPerKcal * type.impTorUnit * improperTorsion.scaleFactor * type.k;
+      // Don't apply lambda scale to alchemical improper torsion
+      if (!improperTorsion.applyLambda()) {
+        forceConstant *= scale;
+      }
+      addTorsion(a1, a2, a3, a4, type.periodicity, type.phase * OpenMM_RadiansPerDegree, forceConstant);
+    }
+
+    int forceGroup = forceFieldEnergy.getMolecularAssembly().getForceField().getInteger("IMPROPER_TORSION_FORCE_GROUP", 0);
+    setForceGroup(forceGroup);
+    logger.info(format("  Improper Torsions:                 %10d", improperTorsions.length));
+    logger.fine(format("   Force Group:                      %10d", forceGroup));
   }
 
   /**
@@ -108,6 +139,22 @@ public class ImproperTorsionForce extends PeriodicTorsionForce {
       return null;
     }
     return new ImproperTorsionForce(openMMEnergy);
+  }
+
+  /**
+   * Convenience method to construct a Dual Topology OpenMM Improper Torsion Force.
+   *
+   * @param topology The topology index for the OpenMM System.
+   * @param openMMDualTopologyEnergy The OpenMMDualTopologyEnergy instance.
+   * @return A Torsion Force, or null if there are no torsions.
+   */
+  public static Force constructForce(int topology, OpenMMDualTopologyEnergy openMMDualTopologyEnergy) {
+    ForceFieldEnergy forceFieldEnergy = openMMDualTopologyEnergy.getForceFieldEnergy(topology);
+    ImproperTorsion[] improperTorsions = forceFieldEnergy.getImproperTorsions();
+    if (improperTorsions == null || improperTorsions.length < 1) {
+      return null;
+    }
+    return new ImproperTorsionForce(topology, openMMDualTopologyEnergy);
   }
 
   /**
@@ -129,11 +176,49 @@ public class ImproperTorsionForce extends PeriodicTorsionForce {
       int a3 = improperTorsion.getAtom(2).getXyzIndex() - 1;
       int a4 = improperTorsion.getAtom(3).getXyzIndex() - 1;
       ImproperTorsionType type = improperTorsion.improperType;
-      double forceConstant = OpenMM_KJPerKcal * type.impTorUnit * improperTorsion.scaleFactor * type.k * lambdaTorsion;
+      double forceConstant = OpenMM_KJPerKcal * type.impTorUnit * improperTorsion.scaleFactor * type.k;
       setTorsionParameters(i, a1, a2, a3, a4, type.periodicity, type.phase * OpenMM_RadiansPerDegree, forceConstant);
     }
 
     updateParametersInContext(openMMEnergy.getContext());
+  }
+
+  /**
+   * Update the Dual Topology Improper Torsion force.
+   *
+   * @param topology The topology index for the OpenMM System.
+   * @param openMMDualTopologyEnergy The OpenMMDualTopologyEnergy instance.
+   */
+  public void updateForce(int topology, OpenMMDualTopologyEnergy openMMDualTopologyEnergy) {
+    ForceFieldEnergy forceFieldEnergy = openMMDualTopologyEnergy.getForceFieldEnergy(topology);
+    ImproperTorsion[] improperTorsions = forceFieldEnergy.getImproperTorsions();
+    if (improperTorsions == null || improperTorsions.length < 1) {
+      return;
+    }
+
+    double scale = openMMDualTopologyEnergy.getTopologyScale(topology);
+
+    int nImproperTorsions = improperTorsions.length;
+    for (int i = 0; i < nImproperTorsions; i++) {
+      ImproperTorsion improperTorsion = improperTorsions[i];
+      int a1 = improperTorsion.getAtom(0).getArrayIndex();
+      int a2 = improperTorsion.getAtom(1).getArrayIndex();
+      int a3 = improperTorsion.getAtom(2).getArrayIndex();
+      int a4 = improperTorsion.getAtom(3).getArrayIndex();
+      a1 = openMMDualTopologyEnergy.mapToDualTopologyIndex(topology, a1);
+      a2 = openMMDualTopologyEnergy.mapToDualTopologyIndex(topology, a2);
+      a3 = openMMDualTopologyEnergy.mapToDualTopologyIndex(topology, a3);
+      a4 = openMMDualTopologyEnergy.mapToDualTopologyIndex(topology, a4);
+      ImproperTorsionType type = improperTorsion.improperType;
+      double forceConstant = OpenMM_KJPerKcal * type.impTorUnit * improperTorsion.scaleFactor * type.k;
+      // Don't apply lambda scale to alchemical improper torsion
+      if (!improperTorsion.applyLambda()) {
+        forceConstant *= scale;
+      }
+      setTorsionParameters(i, a1, a2, a3, a4, type.periodicity, type.phase * OpenMM_RadiansPerDegree, forceConstant);
+    }
+
+    updateParametersInContext(openMMDualTopologyEnergy.getContext());
   }
 
 }

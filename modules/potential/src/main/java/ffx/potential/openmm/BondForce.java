@@ -40,11 +40,11 @@ package ffx.potential.openmm;
 import ffx.openmm.CustomBondForce;
 import ffx.openmm.DoubleArray;
 import ffx.openmm.Force;
+import ffx.potential.ForceFieldEnergy;
 import ffx.potential.bonded.Bond;
 import ffx.potential.parameters.BondType;
 import ffx.potential.parameters.ForceField;
 
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static edu.uiowa.jopenmm.OpenMMAmoebaLibrary.OpenMM_KJPerKcal;
@@ -73,8 +73,8 @@ public class BondForce extends CustomBondForce {
     double kParameterConversion = OpenMM_KJPerKcal / (OpenMM_NmPerAngstrom * OpenMM_NmPerAngstrom);
     DoubleArray parameters = new DoubleArray(0);
     for (Bond bond : bonds) {
-      int i1 = bond.getAtom(0).getXyzIndex() - 1;
-      int i2 = bond.getAtom(1).getXyzIndex() - 1;
+      int i1 = bond.getAtom(0).getArrayIndex();
+      int i2 = bond.getAtom(1).getArrayIndex();
       BondType bondType = bond.bondType;
       double r0 = bondType.distance * OpenMM_NmPerAngstrom;
       double k = kParameterConversion * bondType.forceConstant * bond.bondType.bondUnit;
@@ -93,7 +93,54 @@ public class BondForce extends CustomBondForce {
   }
 
   /**
-   * Add a bond force to the OpenMM System.
+   * Bond Force constructor.
+   *
+   * @param topology                 The topology index for the OpenMM System.
+   * @param openMMDualTopologyEnergy The OpenMMDualTopologyEnergy instance.
+   */
+  public BondForce(int topology, OpenMMDualTopologyEnergy openMMDualTopologyEnergy) {
+    super(openMMDualTopologyEnergy.getForceFieldEnergy(topology).getBondEnergyString());
+
+    ForceFieldEnergy forceFieldEnergy = openMMDualTopologyEnergy.getForceFieldEnergy(topology);
+    Bond[] bonds = forceFieldEnergy.getBonds();
+    addPerBondParameter("r0");
+    addPerBondParameter("k");
+    setName("AmoebaBond");
+
+    double scale = openMMDualTopologyEnergy.getTopologyScale(topology);
+
+    double kParameterConversion = OpenMM_KJPerKcal / (OpenMM_NmPerAngstrom * OpenMM_NmPerAngstrom);
+    DoubleArray parameters = new DoubleArray(0);
+    for (Bond bond : bonds) {
+      int i1 = bond.getAtom(0).getArrayIndex();
+      int i2 = bond.getAtom(1).getArrayIndex();
+      BondType bondType = bond.bondType;
+      double r0 = bondType.distance * OpenMM_NmPerAngstrom;
+      double k = kParameterConversion * bondType.forceConstant * bond.bondType.bondUnit;
+      // Don't apply lambda scale to alchemical bond
+      if (!bond.applyLambda()) {
+        k = k * scale;
+      }
+      parameters.append(r0);
+      parameters.append(k);
+      i1 = openMMDualTopologyEnergy.mapToDualTopologyIndex(topology, i1);
+      i2 = openMMDualTopologyEnergy.mapToDualTopologyIndex(topology, i2);
+      addBond(i1, i2, parameters);
+      parameters.resize(0);
+    }
+    parameters.destroy();
+
+    ForceField forceField = forceFieldEnergy.getMolecularAssembly().getForceField();
+    int forceGroup = forceField.getInteger("BOND_FORCE_GROUP", 0);
+    setForceGroup(forceGroup);
+    logger.info(format("  Bonds:                             %10d", bonds.length));
+    logger.fine(format("   Force Group:                      %10d", forceGroup));
+  }
+
+  /**
+   * Creat a bond force for the OpenMM System.
+   *
+   * @param openMMEnergy OpenMM Energy that contains the Bond instances.
    */
   public static Force constructForce(OpenMMEnergy openMMEnergy) {
     Bond[] bonds = openMMEnergy.getBonds();
@@ -101,6 +148,21 @@ public class BondForce extends CustomBondForce {
       return null;
     }
     return new BondForce(openMMEnergy);
+  }
+
+  /**
+   * Add a bond force to the OpenMM System.
+   *
+   * @param topology                 The topology index for the OpenMM System.
+   * @param openMMDualTopologyEnergy The OpenMMDualTopologyEnergy instance.
+   */
+  public static Force constructForce(int topology, OpenMMDualTopologyEnergy openMMDualTopologyEnergy) {
+    ForceFieldEnergy forceFieldEnergy = openMMDualTopologyEnergy.getForceFieldEnergy(topology);
+    Bond[] bonds = forceFieldEnergy.getBonds();
+    if (bonds == null || bonds.length < 1) {
+      return null;
+    }
+    return new BondForce(topology, openMMDualTopologyEnergy);
   }
 
   /**
@@ -116,8 +178,8 @@ public class BondForce extends CustomBondForce {
     DoubleArray parameters = new DoubleArray(0);
     int index = 0;
     for (Bond bond : bonds) {
-      int i1 = bond.getAtom(0).getXyzIndex() - 1;
-      int i2 = bond.getAtom(1).getXyzIndex() - 1;
+      int i1 = bond.getAtom(0).getArrayIndex();
+      int i2 = bond.getAtom(1).getArrayIndex();
       BondType bondType = bond.bondType;
       double r0 = bondType.distance * OpenMM_NmPerAngstrom;
       double k = kParameterConversion * bondType.forceConstant * bondType.bondUnit;
@@ -128,6 +190,45 @@ public class BondForce extends CustomBondForce {
     }
     parameters.destroy();
     updateParametersInContext(openMMEnergy.getContext());
+  }
+
+  /**
+   * Update an existing bond force for the OpenMM System.
+   *
+   * @param topology                 The topology index for the OpenMM System.
+   * @param openMMDualTopologyEnergy The OpenMMDualTopologyEnergy instance.
+   */
+  public void updateForce(int topology, OpenMMDualTopologyEnergy openMMDualTopologyEnergy) {
+    ForceFieldEnergy forceFieldEnergy = openMMDualTopologyEnergy.getForceFieldEnergy(topology);
+    Bond[] bonds = forceFieldEnergy.getBonds();
+    if (bonds == null || bonds.length < 1) {
+      return;
+    }
+
+    double scale = openMMDualTopologyEnergy.getTopologyScale(topology);
+
+    double kParameterConversion = OpenMM_KJPerKcal / (OpenMM_NmPerAngstrom * OpenMM_NmPerAngstrom);
+    DoubleArray parameters = new DoubleArray(0);
+    int index = 0;
+    for (Bond bond : bonds) {
+      int i1 = bond.getAtom(0).getArrayIndex();
+      int i2 = bond.getAtom(1).getArrayIndex();
+      BondType bondType = bond.bondType;
+      double r0 = bondType.distance * OpenMM_NmPerAngstrom;
+      double k = kParameterConversion * bondType.forceConstant * bondType.bondUnit;
+      // Don't apply lambda scale to alchemical bond
+      if (!bond.applyLambda()) {
+        k = k * scale;
+      }
+      parameters.append(r0);
+      parameters.append(k);
+      i1 = openMMDualTopologyEnergy.mapToDualTopologyIndex(topology, i1);
+      i2 = openMMDualTopologyEnergy.mapToDualTopologyIndex(topology, i2);
+      setBondParameters(index++, i1, i2, parameters);
+      parameters.resize(0);
+    }
+    parameters.destroy();
+    updateParametersInContext(openMMDualTopologyEnergy.getContext());
   }
 
 }

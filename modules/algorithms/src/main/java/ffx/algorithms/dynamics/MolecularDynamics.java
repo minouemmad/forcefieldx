@@ -146,6 +146,22 @@ public class MolecularDynamics implements Runnable, Terminatable {
    */
   Barostat barostat = null;
   /**
+   * Special initialization for pH-AFED simulations
+   */
+  private void initPhAFED() {
+      if (potential instanceof ExtendedSystem) {
+          ExtendedSystem esv = (ExtendedSystem) potential;
+          if (esv.isPhAFED()) {
+              // Set high temperature for lambda variables
+              esvThermostat.setTargetTemperature(esv.getThetaTemp());
+              // Set large mass for lambda variables
+              double[] mass = esvState.getMass();
+              Arrays.fill(mass, esv.getThetaMass());
+              esvState.setMass(mass);
+          }
+      }
+  }
+  /**
    * Stores the current molecular dynamics state.
    */
   protected final SystemState state;
@@ -285,6 +301,10 @@ public class MolecularDynamics implements Runnable, Terminatable {
    */
   private ExtendedSystem esvSystem;
   /**
+   * ESV System state.
+   */
+  private SystemState esvState;
+  /**
    * ESV Stochastic integrator.
    */
   private Stochastic esvIntegrator;
@@ -414,6 +434,19 @@ public class MolecularDynamics implements Runnable, Terminatable {
       thermostat.setRandomSeed(properties.getInt("randomseed", 0));
     }
 
+    if (potential instanceof ExtendedSystem) {
+      ExtendedSystem esv = (ExtendedSystem) potential;
+      if (esv.isPhAFED()) {
+          // Use stochastic integrator for lambda variables
+          this.esvIntegrator = new Stochastic(esv.getThetaFriction(), esvState);
+          this.esvIntegrator.setTemperature(esv.getThetaTemp());
+          if (!esv.getConstraints().isEmpty()) {
+              esvIntegrator.addConstraints(esv.getConstraints());
+          }
+          this.esvThermostat = new Adiabatic(esvState, potential.getVariableTypes());
+      }
+  }
+
     // For Stochastic dynamics, center of mass motion will not be removed.
     if (integrator instanceof Stochastic) {
       boolean removecom = assembly.getForceField().getBoolean("removecom", false);
@@ -541,22 +574,22 @@ public class MolecularDynamics implements Runnable, Terminatable {
    * @param system a {@link ffx.potential.extended.ExtendedSystem} object.
    */
   public void attachExtendedSystem(ExtendedSystem system, double reportFreq) {
-    if (esvSystem != null) {
-      logger.warning("An ExtendedSystem is already attached to this MD!");
-    }
-    esvSystem = system;
-    SystemState esvState = esvSystem.getState();
-    this.esvIntegrator = new Stochastic(esvSystem.getThetaFriction(), esvState);
-    if (!esvSystem.getConstraints().isEmpty()) {
-      esvIntegrator.addConstraints(esvSystem.getConstraints());
-    }
-    this.esvThermostat = new Adiabatic(esvState, potential.getVariableTypes());
-    printEsvFrequency = intervalToFreq(reportFreq, "Reporting (logging) interval");
-    logger.info(
-        format("  Attached extended system (%s) to molecular dynamics.", esvSystem.toString()));
-    logger.info(format("  Extended System Theta Friction: %f", esvSystem.getThetaFriction()));
-    logger.info(format("  Extended System Theta Mass: %f", esvSystem.getThetaMass()));
-    logger.info(format("  Extended System Lambda Print Frequency: %d (fsec)", printEsvFrequency));
+      if (esvSystem != null) {
+          logger.warning("An ExtendedSystem is already attached to this MD!");
+      }
+      esvSystem = system;
+      esvState = esvSystem.getState(); // Store the state in the field
+      this.esvIntegrator = new Stochastic(esvSystem.getThetaFriction(), esvState);
+      if (!esvSystem.getConstraints().isEmpty()) {
+          esvIntegrator.addConstraints(esvSystem.getConstraints());
+      }
+      this.esvThermostat = new Adiabatic(esvState, potential.getVariableTypes());
+      printEsvFrequency = intervalToFreq(reportFreq, "Reporting (logging) interval");
+      logger.info(
+          format("  Attached extended system (%s) to molecular dynamics.", esvSystem.toString()));
+      logger.info(format("  Extended System Theta Friction: %f", esvSystem.getThetaFriction()));
+      logger.info(format("  Extended System Theta Mass: %f", esvSystem.getThetaMass()));
+      logger.info(format("  Extended System Lambda Print Frequency: %d (fsec)", printEsvFrequency));
   }
 
   /**
@@ -1213,6 +1246,10 @@ public class MolecularDynamics implements Runnable, Terminatable {
     thermostat.setQuiet(quiet);
     if (integrator instanceof Stochastic stochastic) {
       stochastic.setTemperature(targetTemperature);
+    }
+    // pH-AFED INITIALIZATION:
+    if (potential instanceof ExtendedSystem) {
+        initPhAFED();
     }
 
     // Set the step size.

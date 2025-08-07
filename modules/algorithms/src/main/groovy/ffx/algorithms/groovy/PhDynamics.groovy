@@ -120,6 +120,21 @@ class PhDynamics extends AlgorithmsScript {
           description = "Print out the protonation ratios from throughout the simulation at the end")
   boolean printRatio = false
 
+  @Option(names = ['--phAFED'], paramLabel = 'false',
+          description = 'Use pH-AFED enhanced sampling method')
+  boolean phAFED = false
+
+  @Option(names = ['--thetaTemp'], paramLabel = '3000.0',
+          description = 'Fictitious temperature for lambda variables in pH-AFED (Kelvin)')
+  double thetaTemp = 3000.0
+
+  @Option(names = ['--thetaMass'], paramLabel = '500.0',
+          description = 'Artificial mass for lambda variables in pH-AFED (amu)')
+  double thetaMass = 500.0
+
+  @Option(names = ['--thetaFriction'], paramLabel = '20.0',
+          description = 'Friction coefficient for lambda variables in pH-AFED (ps^-1)')
+  double thetaFriction = 20.0
 
 
 

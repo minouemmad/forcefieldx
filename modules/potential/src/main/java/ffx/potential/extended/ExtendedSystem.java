@@ -114,13 +114,13 @@ public class ExtendedSystem implements Potential {
      * Descritizer Bias Magnitude. Default is 1 kcal/mol.
      */
     private final double ASHtautBiasMag;
-    private final double ASHtitrBiasMag;
+    private double ASHtitrBiasMag;
     private final double[] CYSFmod = new double[4];
     private final double CYSrestraintConstant;
     /**
      * Descritizer Bias Magnitude. Default is 1 kcal/mol.
      */
-    private final double CYStitrBiasMag;
+    private double CYStitrBiasMag;
     private final double[] GLH1toGLH2 = new double[4];
     private final double[] GLHFmod = new double[4];
     private final double GLHrestraintConstant;
@@ -128,7 +128,7 @@ public class ExtendedSystem implements Potential {
      * Descritizer Bias Magnitude. Default is 1 kcal/mol.
      */
     private final double GLHtautBiasMag;
-    private final double GLHtitrBiasMag;
+    private double GLHtitrBiasMag;
     /**
      * Coefficients that define the tautomer component of the bivariate Histidine Fmod
      * quadratic * tautomerLambda^2 + linear * tautomerLambda
@@ -141,13 +141,13 @@ public class ExtendedSystem implements Potential {
      * Descritizer Bias Magnitude. Default is 1 kcal/mol.
      */
     private final double HIStautBiasMag;
-    private final double HIStitrBiasMag;
+    private double HIStitrBiasMag;
     private final double[] LYSFmod = new double[4];
     private final double LYSrestraintConstant;
     /**
      * Descritizer Bias Magnitude. Default is 1 kcal/mol.
      */
-    private final double LYStitrBiasMag;
+    private double LYStitrBiasMag;
     private final List<Constraint> constraints;
     public final boolean useTotalChargeCorrection;
     private final boolean doBias;
@@ -247,13 +247,19 @@ public class ExtendedSystem implements Potential {
      */
     private final List<Residue> tautomerizingResidueList;
     /**
+     * New fields for pH-AFED
+     */
+    private boolean phAFED = false;
+    /**
      * Friction for the ESV system
      */
-    private final double thetaFriction;
+    private double thetaFriction = 20.0; // ps^-1
     /**
      * The system defined theta mass of the fictional particle. Used to fill theta mass array.
      */
-    private final double thetaMass;
+    private double thetaMass = 500.0; // amu
+    
+    private double thetaTemp = 3000.0; // K
     /**
      * List of titrating residues.
      */
@@ -322,6 +328,9 @@ public class ExtendedSystem implements Potential {
         thetaFriction = properties.getDouble("esv.friction", ExtendedSystem.THETA_FRICTION);
         thetaMass = properties.getDouble("esv.mass", ExtendedSystem.THETA_MASS);
 
+        //Modifed constructor to read pH-AFED properties
+        phAFED = properties.getBoolean("phAFED", false);
+
         lockStates = properties.getBoolean("lock.esv.states", false); // Prevents setTitrationLambda/setTautomerLambda
         double initialTitrationLambda = properties.getDouble("lambda.titration.initial", 0.5);
         double initialTautomerLambda = properties.getDouble("lambda.tautomer.initial", 0.5);
@@ -375,6 +384,19 @@ public class ExtendedSystem implements Potential {
         CYSFmod[0] = TitrationUtils.Titration.CYStoCYD.offset;
         CYStitrBiasMag = properties.getDouble("CYS.titration.bias.magnitude", DISCR_BIAS);
         CYSrestraintConstant = properties.getDouble("CYS.restraint.constant", 0.0);
+
+        if (phAFED) {
+            thetaTemp = properties.getDouble("esv.temperature", 3000.0);
+            thetaMass = properties.getDouble("esv.mass", 500.0); 
+            thetaFriction = properties.getDouble("esv.friction", 20.0);
+            
+            // Increase discretizer bias magnitude for better sampling in pH-AFED
+            ASHtitrBiasMag = properties.getDouble("ASH.titration.bias.magnitude", 10.0);
+            GLHtitrBiasMag = properties.getDouble("GLH.titration.bias.magnitude", 10.0);
+            HIStitrBiasMag = properties.getDouble("HIS.titration.bias.magnitude", 10.0); 
+            LYStitrBiasMag = properties.getDouble("LYS.titration.bias.magnitude", 10.0);
+            CYStitrBiasMag = properties.getDouble("CYS.titration.bias.magnitude", 10.0);
+        }
 
         HIDFmod[3] = properties.getDouble("HID.cubic", TitrationUtils.Titration.HIStoHID.cubic);
         HIDFmod[2] = properties.getDouble("HID.quadratic", TitrationUtils.Titration.HIStoHID.quadratic);
@@ -1455,12 +1477,36 @@ public class ExtendedSystem implements Potential {
         return extendedResidueList;
     }
 
+    public boolean isPhAFED() {
+        return phAFED;
+    }
+
+    public void setPhAFED(boolean phAFED) {
+        this.phAFED = phAFED;
+    }
+
+    public double getThetaTemp() {
+        return thetaTemp;
+    }
+
+    public void setThetaTemp(double thetaTemp) {
+        this.thetaTemp = thetaTemp;
+    }
+
     public double getThetaMass() {
         return thetaMass;
     }
 
+    public void setThetaMass(double thetaMass) {
+        this.thetaMass = thetaMass;
+    }
+
     public double getThetaFriction() {
         return thetaFriction;
+    }
+
+    public void setThetaFriction(double thetaFriction) {
+        this.thetaFriction = thetaFriction;
     }
 
     /**

@@ -125,14 +125,15 @@ class PhDynamics extends AlgorithmsScript {
   boolean phAFED = false
 
   @Option(names = ['--thetaTemp'], paramLabel = '3000.0',
-          description = 'Fictitious temperature for lambda variables in pH-AFED (Kelvin)')
+          description = 'Fictitious temperature for lambda variables in pH-AFED (Kelvin)',
+          hidden = true)
   double thetaTemp = 3000.0
 
-  @Option(names = ['--thetaMass'], paramLabel = '500.0',
+  @Option(names = ['--thetaMass'], paramLabel = '5',
           description = 'Artificial mass for lambda variables in pH-AFED (amu)')
   double thetaMass = 500.0
 
-  @Option(names = ['--thetaFriction'], paramLabel = '20.0',
+  @Option(names = ['--thetaFriction'], paramLabel = '0.5',
           description = 'Friction coefficient for lambda variables in pH-AFED (ps^-1)')
   double thetaFriction = 20.0
 
@@ -208,6 +209,17 @@ class PhDynamics extends AlgorithmsScript {
 
     // Initialize and attach extended system first.
     ExtendedSystem esvSystem = new ExtendedSystem(activeAssembly, pH, esv)
+    if (phAFED) {
+      // Only set AFED-specific parameters if pH-AFED is enabled
+      esvSystem.setPhAFED(true)
+      esvSystem.setThetaTemp(thetaTemp)
+      esvSystem.setThetaMass(thetaMass)
+      esvSystem.setThetaFriction(thetaFriction)
+      logger.info("\n pH-AFED parameters:")
+      logger.info(" Theta temperature: " + thetaTemp + " K")
+      logger.info(" Theta mass: " + thetaMass + " amu")
+      logger.info(" Theta friction: " + thetaFriction + " ps^-1")
+    }
     potential.attachExtendedSystem(esvSystem)
 
     int numESVs = esvSystem.extendedResidueList.size()

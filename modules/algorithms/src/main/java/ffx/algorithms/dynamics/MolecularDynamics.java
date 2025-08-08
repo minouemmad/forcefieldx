@@ -157,9 +157,10 @@ public class MolecularDynamics implements Runnable, Terminatable {
               // Set high temperature for lambda variables
               esvThermostat.setTargetTemperature(esv.getThetaTemp());
               // Set large mass for lambda variables
-              double[] mass = esvState.getMass();
-              Arrays.fill(mass, esv.getThetaMass());
-              esvState.setMass(mass);
+              double thetaMass = esv.getThetaMass();
+              for (SystemState state : esvStates) {
+                state.setMass(new double[] { thetaMass });
+              }
           }
       }
   }
@@ -305,11 +306,11 @@ public class MolecularDynamics implements Runnable, Terminatable {
   /**
    * ESV System state.
    */
-  private SystemState esvState;
+  private SystemState[] esvStates;
   /**
    * ESV Stochastic integrator.
    */
-  private Stochastic esvIntegrator;
+  private List<Stochastic> esvIntegrators;
   /**
    * ESV Adiabatic thermostat.
    */
@@ -438,15 +439,6 @@ public class MolecularDynamics implements Runnable, Terminatable {
 
     if (potential instanceof ExtendedSystem) {
       ExtendedSystem esv = (ExtendedSystem) potential;
-      if (esv.isPhAFED()) {
-          // Use stochastic integrator for lambda variables
-          this.esvIntegrator = new Stochastic(esv.getThetaFriction(), esvState);
-          this.esvIntegrator.setTemperature(esv.getThetaTemp());
-          if (!esv.getConstraints().isEmpty()) {
-              esvIntegrator.addConstraints(esv.getConstraints());
-          }
-          this.esvThermostat = new Adiabatic(esvState, potential.getVariableTypes());
-      }
   }
 
     // For Stochastic dynamics, center of mass motion will not be removed.
@@ -581,19 +573,29 @@ public class MolecularDynamics implements Runnable, Terminatable {
       if (esvSystem != null) {
           logger.warning("An ExtendedSystem is already attached to this MD!");
       }
-      esvSystem = system;
-      esvState = esvSystem.getState(); // Store the state in the field
-      this.esvIntegrator = new Stochastic(esvSystem.getThetaFriction(), esvState);
-      if (!esvSystem.getConstraints().isEmpty()) {
-          esvIntegrator.addConstraints(esvSystem.getConstraints());
-      }
-      this.esvThermostat = new Adiabatic(esvState, potential.getVariableTypes());
-      printEsvFrequency = intervalToFreq(reportFreq, "Reporting (logging) interval");
-      logger.info(
-          format("  Attached extended system (%s) to molecular dynamics.", esvSystem.toString()));
-      logger.info(format("  Extended System Theta Friction: %f", esvSystem.getThetaFriction()));
-      logger.info(format("  Extended System Theta Mass: %f", esvSystem.getThetaMass()));
-      logger.info(format("  Extended System Lambda Print Frequency: %d (fsec)", printEsvFrequency));
+    esvSystem = system;
+    this.esvStates = esvSystem.getStates();
+    this.esvIntegrators = new ArrayList<>();
+
+    double[] frictions = esvSystem.getThetaFrictionArray();
+    double thetaMass = esvSystem.getThetaMass();
+    int n = esvStates.length;
+
+    for (int i = 0; i < n; i++) {
+      SystemState localState = esvStates[i];
+      localState.setMass(new double[] { thetaMass });
+
+      Stochastic integrator = new Stochastic(frictions[i], localState);
+      this.esvIntegrators.add(integrator);
+    }
+
+    this.esvThermostat = new Adiabatic(esvStates[0], potential.getVariableTypes());
+    printEsvFrequency = intervalToFreq(reportFreq, "Reporting (logging) interval");
+
+    logger.info(format("  Attached extended system (%s) to molecular dynamics.", esvSystem.toString()));
+    logger.info(format("  Extended System Theta Friction: %f", esvSystem.getThetaFriction()));
+    logger.info(format("  Extended System Theta Mass: %f", esvSystem.getThetaMass()));
+    logger.info(format("  Extended System Lambda Print Frequency: %d (fsec)", printEsvFrequency));
   }
 
   /**
@@ -1336,13 +1338,12 @@ public class MolecularDynamics implements Runnable, Terminatable {
     }
 
     if (esvSystem != null) {
-      SystemState esvState = esvSystem.getState();
-      double[] esvA = esvState.a();
-      double[] esvMass = esvState.getMass();
-      int nESVs = esvState.getNumberOfVariables();
-      double[] gradESV = esvSystem.postForce();
-      for (int i = 0; i < nESVs; i++) {
-        esvA[i] = -KCAL_TO_GRAM_ANG2_PER_PS2 * gradESV[i] / esvMass[i];
+      SystemState[] esvStates = esvSystem.getStates();
+      double[] gradESV = esvSystem.postForce();  // length = nESVs
+      for (int i = 0; i < esvStates.length; i++) {
+        double[] a = esvStates[i].a(); // Should be length 1
+        double[] mass = esvStates[i].getMass(); // Should be length 1
+        a[0] = -KCAL_TO_GRAM_ANG2_PER_PS2 * gradESV[i] / mass[0];
       }
     }
 
@@ -1380,6 +1381,13 @@ public class MolecularDynamics implements Runnable, Terminatable {
 
     // Store the initialized state.
     storeState();
+    logger.log(basicLogging, format("  Thermostat: %s", thermostat));
+    logger.log(basicLogging, format("  Integrator: %s", integrator));
+    if (esvSystem != null) {
+      logger.log(basicLogging, format("  Lambda temperature: %.2f K", esvSystem.getThetaTemp()));
+      logger.log(basicLogging, format("  Lambda friction: %.2f 1/ps", esvSystem.getThetaFriction()));
+      logger.log(basicLogging, format("  Lambda mass: %.6f", esvSystem.getThetaMass()));
+    }
   }
 
   /**
@@ -1575,7 +1583,9 @@ public class MolecularDynamics implements Runnable, Terminatable {
       // Do the half-step integration operation.
       integrator.preForce(potential);
       if (esvSystem != null) {
-        esvIntegrator.preForce(potential);
+        for (Stochastic integrator : esvIntegrators) {
+          integrator.preForce(potential);
+        }
         //preForce processes theta values after
         esvSystem.preForce();
       }
@@ -1597,7 +1607,9 @@ public class MolecularDynamics implements Runnable, Terminatable {
       integrator.postForce(state.gradient());
       if (esvSystem != null) {
         double[] dEdL = esvSystem.postForce();
-        esvIntegrator.postForce(dEdL);
+        for (int i = 0; i < esvIntegrators.size(); i++) {
+          esvIntegrators.get(i).postForce(dEdL);
+        }
       }
 
       // Compute the full-step kinetic energy.

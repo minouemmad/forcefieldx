@@ -124,21 +124,18 @@ class PhDynamics extends AlgorithmsScript {
           description = 'Use pH-AFED enhanced sampling method')
   boolean phAFED = false
 
-  @Option(names = ['--thetaTemp'], paramLabel = '3000.0',
+  @Option(names = ['--thetaTemp'], paramLabel = "<system temperature>",
           description = 'Fictitious temperature for lambda variables in pH-AFED (Kelvin)',
           hidden = true)
-  double thetaTemp = 3000.0
+  Double thetaTemp = null
 
   @Option(names = ['--thetaMass'], paramLabel = '5',
           description = 'Artificial mass for lambda variables in pH-AFED (amu)')
-  double thetaMass = 500.0
+  Double thetaMass = null
 
   @Option(names = ['--thetaFriction'], paramLabel = '0.5',
           description = 'Friction coefficient for lambda variables in pH-AFED (ps^-1)')
-  double thetaFriction = 20.0
-
-
-
+  Double thetaFriction = null
 
   /**
    * One or more filenames.
@@ -207,19 +204,34 @@ class PhDynamics extends AlgorithmsScript {
       esv = null
     }
 
+    // Non-AFED defaults
+    double defaultMass = 5.0
+    double defaultFriction = 0.5
+    double defaultTemp = dynamicsOptions.temperature
+
+    // AFED defaults
+    double afedMass = 500.0
+    double afedFriction = 20.0
+    double afedTemp = 3000.0
+
+    // Decide defaults based on AFED flag
+    if (phAFED) {
+      if (thetaMass == null)      thetaMass = afedMass
+      if (thetaFriction == null)  thetaFriction = afedFriction
+      if (thetaTemp == null)      thetaTemp = afedTemp
+    } else {
+      if (thetaMass == null)      thetaMass = defaultMass
+      if (thetaFriction == null)  thetaFriction = defaultFriction
+      if (thetaTemp == null)      thetaTemp = defaultTemp
+    }
+
     // Initialize and attach extended system first.
     ExtendedSystem esvSystem = new ExtendedSystem(activeAssembly, pH, esv)
-    if (phAFED) {
-      // Only set AFED-specific parameters if pH-AFED is enabled
-      esvSystem.setPhAFED(true)
-      esvSystem.setThetaTemp(thetaTemp)
-      esvSystem.setThetaMass(thetaMass)
-      esvSystem.setThetaFriction(thetaFriction)
-      logger.info("\n pH-AFED parameters:")
-      logger.info(" Theta temperature: " + thetaTemp + " K")
-      logger.info(" Theta mass: " + thetaMass + " amu")
-      logger.info(" Theta friction: " + thetaFriction + " ps^-1")
-    }
+    esvSystem.setPhAFED(phAFED)
+    esvSystem.setThetaMass(thetaMass)
+    esvSystem.setThetaFriction(thetaFriction)
+    esvSystem.setThetaTemp(thetaTemp)
+
     potential.attachExtendedSystem(esvSystem)
 
     int numESVs = esvSystem.extendedResidueList.size()

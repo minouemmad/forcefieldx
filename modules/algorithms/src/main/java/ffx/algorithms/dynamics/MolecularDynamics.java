@@ -151,19 +151,28 @@ public class MolecularDynamics implements Runnable, Terminatable {
    * Special initialization for pH-AFED simulations
    */
   private void initPhAFED() {
-      if (potential instanceof ExtendedSystem) {
-          ExtendedSystem esv = (ExtendedSystem) potential;
-          if (esv.isPhAFED()) {
-              // Set high temperature for lambda variables
-              esvThermostat.setTargetTemperature(esv.getThetaTemp());
-              // Set large mass for lambda variables
-              double thetaMass = esv.getThetaMass();
-              for (SystemState state : esvStates) {
-                state.setMass(new double[] { thetaMass });
-              }
-          }
-      }
-  }
+    if (potential instanceof ExtendedSystem esv) {
+        if (esv.isPhAFED()) {
+            double thetaTemp = esv.getThetaTemp();
+            for (Adiabatic t : esvThermostats) {
+                t.setTargetTemperature(thetaTemp);
+            }
+            double thetaMass = esv.getThetaMass();
+            for (SystemState state : esvStates) {
+                state.setMass(new double[]{thetaMass});
+            }
+        } else {
+            double mdTemp = thermostat.getTargetTemperature();
+            if (esvThermostat != null) {
+                esvThermostat.setTargetTemperature(mdTemp);
+            }
+            if (esvState != null) {
+                esvState.setMass(new double[]{esv.getThetaMass()});
+            }
+        }
+    }
+}
+
   /**
    * Stores the current molecular dynamics state.
    */
@@ -304,17 +313,22 @@ public class MolecularDynamics implements Runnable, Terminatable {
    */
   private ExtendedSystem esvSystem;
   /**
-   * ESV System state.
+   * ESV System states.
    */
   private SystemState[] esvStates;
+
+  private SystemState esvState; // Single state when pH-AFED disabled
+  private Stochastic esvIntegrator; // Single integrator when pH-AFED disabled
+  private Adiabatic esvThermostat; // Single thermostat when pH-AFED disabled
+
   /**
    * ESV Stochastic integrator.
    */
   private List<Stochastic> esvIntegrators;
   /**
-   * ESV Adiabatic thermostat.
+   * ESV Adiabatic thermostats (one per ESV SystemState).
    */
-  private Adiabatic esvThermostat;
+  private Adiabatic[] esvThermostats = null;
   /**
    * Frequency to print ESV info.
    */
@@ -570,33 +584,61 @@ public class MolecularDynamics implements Runnable, Terminatable {
    * @param system a {@link ffx.potential.extended.ExtendedSystem} object.
    */
   public void attachExtendedSystem(ExtendedSystem system, double reportFreq) {
-      if (esvSystem != null) {
-          logger.warning("An ExtendedSystem is already attached to this MD!");
-      }
+    if (esvSystem != null) {
+        logger.warning("An ExtendedSystem is already attached to this MD!");
+    }
     esvSystem = system;
-    this.esvStates = esvSystem.getStates();
-    this.esvIntegrators = new ArrayList<>();
 
-    double[] frictions = esvSystem.getThetaFrictionArray();
-    double thetaMass = esvSystem.getThetaMass();
-    int n = esvStates.length;
+    CompositeConfiguration properties = molecularAssembly[0].getProperties();
 
-    for (int i = 0; i < n; i++) {
-      SystemState localState = esvStates[i];
-      localState.setMass(new double[] { thetaMass });
+    if (esvSystem.isPhAFED()) {
+        // pH-AFED setup: use arrays
+        this.esvStates = esvSystem.getStates();
+        this.esvIntegrators = new ArrayList<>();
+        this.esvThermostats = new Adiabatic[esvStates.length];
 
-      Stochastic integrator = new Stochastic(frictions[i], localState);
-      this.esvIntegrators.add(integrator);
+        double[] frictions = esvSystem.getThetaFrictionArray();
+        double thetaMass = esvSystem.getThetaMass();
+
+        for (int i = 0; i < esvStates.length; i++) {
+            esvStates[i].setMass(new double[]{thetaMass});
+            double friction = (frictions != null && i < frictions.length) ? frictions[i] : 0.0;
+
+            Stochastic integrator = new Stochastic(friction, esvStates[i]);
+            if (properties.containsKey("randomseed")) {
+                integrator.setRandomSeed(properties.getInt("randomseed", 0));
+            }
+            this.esvIntegrators.add(integrator);
+            this.esvThermostats[i] = new Adiabatic(esvStates[i], potential.getVariableTypes());
+
+            logger.info(String.format(
+                "Created pH-AFED ESV integrator %d with friction=%f mass=%f",
+                i, friction, thetaMass));
+        }
+
+    } else {
+        // Standard ESV setup: single variables
+        this.esvState = esvSystem.getStates()[0];
+        double thetaMass = esvSystem.getThetaMass();
+        esvState.setMass(new double[]{thetaMass});
+        double friction = esvSystem.getThetaFriction();
+
+        this.esvIntegrator = new Stochastic(friction, esvState);
+        if (properties.containsKey("randomseed")) {
+            esvIntegrator.setRandomSeed(properties.getInt("randomseed", 0));
+        }
+        this.esvThermostat = new Adiabatic(esvState, potential.getVariableTypes());
+
+        logger.info(String.format(
+            "Created single ESV integrator with friction=%f mass=%f",
+            friction, thetaMass));
     }
 
-    this.esvThermostat = new Adiabatic(esvStates[0], potential.getVariableTypes());
     printEsvFrequency = intervalToFreq(reportFreq, "Reporting (logging) interval");
+    logger.info(String.format("Attached extended system (%s). pH-AFED: %s",
+            esvSystem, esvSystem.isPhAFED()));
+}
 
-    logger.info(format("  Attached extended system (%s) to molecular dynamics.", esvSystem.toString()));
-    logger.info(format("  Extended System Theta Friction: %f", esvSystem.getThetaFriction()));
-    logger.info(format("  Extended System Theta Mass: %f", esvSystem.getThetaMass()));
-    logger.info(format("  Extended System Lambda Print Frequency: %d (fsec)", printEsvFrequency));
-  }
 
   /**
    * Enables non-equilibrium lambda dynamics.
@@ -1299,61 +1341,83 @@ public class MolecularDynamics implements Runnable, Terminatable {
   /**
    * Initializes energy fields, esp. potential energy.
    */
-  private void initializeEnergies() {
+private void initializeEnergies() {
     // Compute the current potential energy.
     double[] x = state.x();
     double[] gradient = state.gradient();
 
     boolean propagateLambda = true;
     if (potential instanceof OrthogonalSpaceTempering orthogonalSpaceTempering) {
-      propagateLambda = orthogonalSpaceTempering.getPropagateLambda();
-      orthogonalSpaceTempering.setPropagateLambda(false);
+        propagateLambda = orthogonalSpaceTempering.getPropagateLambda();
+        orthogonalSpaceTempering.setPropagateLambda(false);
     }
 
     if (esvSystem != null && potential instanceof OpenMMEnergy) {
-      state.setPotentialEnergy(((OpenMMEnergy) potential).energyAndGradientFFX(x, gradient));
+        state.setPotentialEnergy(((OpenMMEnergy) potential).energyAndGradientFFX(x, gradient));
     } else {
-      state.setPotentialEnergy(potential.energyAndGradient(x, gradient));
+        state.setPotentialEnergy(potential.energyAndGradient(x, gradient));
     }
 
     if (potential instanceof OrthogonalSpaceTempering orthogonalSpaceTempering) {
-      orthogonalSpaceTempering.setPropagateLambda(propagateLambda);
+        orthogonalSpaceTempering.setPropagateLambda(propagateLambda);
     }
 
     // Initialize current and previous accelerations.
     if (!loadRestart || initialized || integrator instanceof Respa) {
-      // For the Respa integrator, initial accelerations are from the slowly varying forces.
-      if (integrator instanceof Respa) {
-        potential.setEnergyTermState(Potential.STATE.SLOW);
-        potential.energyAndGradient(x, gradient);
-      }
+        // For the Respa integrator, initial accelerations are from the slowly varying forces.
+        if (integrator instanceof Respa) {
+            potential.setEnergyTermState(Potential.STATE.SLOW);
+            potential.energyAndGradient(x, gradient);
+        }
 
-      int numberOfVariables = state.getNumberOfVariables();
-      double[] a = state.a();
-      double[] mass = state.getMass();
-      for (int i = 0; i < numberOfVariables; i++) {
-        a[i] = -KCAL_TO_GRAM_ANG2_PER_PS2 * gradient[i] / mass[i];
-      }
-      state.copyAccelerationsToPrevious();
+        int numberOfVariables = state.getNumberOfVariables();
+        double[] a = state.a();
+        double[] mass = state.getMass();
+        for (int i = 0; i < numberOfVariables; i++) {
+            a[i] = -KCAL_TO_GRAM_ANG2_PER_PS2 * gradient[i] / mass[i];
+        }
+        state.copyAccelerationsToPrevious();
     }
 
+    // Handle ESV accelerations.
     if (esvSystem != null) {
-      SystemState[] esvStates = esvSystem.getStates();
-      double[] gradESV = esvSystem.postForce();  // length = nESVs
-      for (int i = 0; i < esvStates.length; i++) {
-        double[] a = esvStates[i].a(); // Should be length 1
-        double[] mass = esvStates[i].getMass(); // Should be length 1
-        a[0] = -KCAL_TO_GRAM_ANG2_PER_PS2 * gradESV[i] / mass[0];
-      }
+        double[] gradESV = esvSystem.postForce(); // length = nESVs
+        if (esvSystem.isPhAFED()) {
+            // Multiple ESV states
+            for (int i = 0; i < esvStates.length; i++) {
+                double[] a = esvStates[i].a();   // length 1
+                double[] mass = esvStates[i].getMass();
+                a[0] = -KCAL_TO_GRAM_ANG2_PER_PS2 * gradESV[i] / mass[0];
+            }
+        } else {
+            // Single ESV state
+            if (esvState != null) {
+                double[] a = esvState.a();       // length 1
+                double[] mass = esvState.getMass();
+                a[0] = -KCAL_TO_GRAM_ANG2_PER_PS2 * gradESV[0] / mass[0];
+            }
+        }
     }
 
     // Compute the current kinetic energy.
     thermostat.computeKineticEnergy();
     if (esvSystem != null) {
-      esvThermostat.computeKineticEnergy();
-      double kineticEnergy = thermostat.getKineticEnergy();
-      double esvKineticEnergy = esvThermostat.getKineticEnergy();
-      state.setKineticEnergy(kineticEnergy + esvKineticEnergy);
+        double esvKineticEnergy = 0.0;
+        if (esvSystem.isPhAFED()) {
+            // Multiple ESV thermostats
+            for (Adiabatic t : esvThermostats) {
+                t.computeKineticEnergy();
+                esvKineticEnergy += t.getKineticEnergy();
+            }
+        } else {
+            // Single ESV thermostat
+            if (esvThermostat != null) {
+                esvThermostat.computeKineticEnergy();
+                esvKineticEnergy += esvThermostat.getKineticEnergy();
+            }
+        }
+        double kineticEnergy = thermostat.getKineticEnergy();
+        state.setKineticEnergy(kineticEnergy + esvKineticEnergy);
     }
 
     // Store the initial state.
@@ -1364,7 +1428,7 @@ public class MolecularDynamics implements Runnable, Terminatable {
     potentialEnergyStats.reset();
     kineticEnergyStats.reset();
     totalEnergyStats.reset();
-  }
+}
 
   /**
    * Pre-run operations (mostly logging) that require knowledge of system energy.
@@ -1569,9 +1633,8 @@ public class MolecularDynamics implements Runnable, Terminatable {
 
       if (step > 1) {
         List<Constraint> constraints = potential.getConstraints();
-        // TODO: Replace magic numbers with named constants.
         long constraintFails = constraints.stream()
-            .filter((Constraint c) -> !c.constraintSatisfied(state.x(), state.v(), 1E-7, 1E-7)).count();
+                .filter((Constraint c) -> !c.constraintSatisfied(state.x(), state.v(), 1E-7, 1E-7)).count();
         if (constraintFails > 0) {
           logger.info(format(" %d constraint failures in step %d", constraintFails, step));
         }
@@ -1583,10 +1646,14 @@ public class MolecularDynamics implements Runnable, Terminatable {
       // Do the half-step integration operation.
       integrator.preForce(potential);
       if (esvSystem != null) {
-        for (Stochastic integrator : esvIntegrators) {
-          integrator.preForce(potential);
+        if (esvSystem.isPhAFED()) {
+          for (Stochastic integrator : esvIntegrators) {
+            integrator.preForce(potential);
+          }
+        } else {
+          esvThermostat.halfStep(dt);
+          esvIntegrator.preForce(potential);
         }
-        //preForce processes theta values after
         esvSystem.preForce();
       }
 
@@ -1607,10 +1674,17 @@ public class MolecularDynamics implements Runnable, Terminatable {
       integrator.postForce(state.gradient());
       if (esvSystem != null) {
         double[] dEdL = esvSystem.postForce();
-        for (int i = 0; i < esvIntegrators.size(); i++) {
-          esvIntegrators.get(i).postForce(dEdL);
+        if (esvSystem.isPhAFED()) {
+            for (int i = 0; i < esvIntegrators.size(); i++) {
+                logger.fine(String.format("pH-AFED Integrator %d applying dEdL: %12.6f", i, dEdL[i]));
+                esvIntegrators.get(i).postForce(dEdL);
+            }
+        } else {
+          logger.fine(String.format("Standard ESV applying dEdL: %12.6f", dEdL[0]));
+          esvIntegrator.postForce(dEdL);
+          esvThermostat.fullStep(dt);
         }
-      }
+    }
 
       // Compute the full-step kinetic energy.
       thermostat.computeKineticEnergy();
@@ -1620,21 +1694,48 @@ public class MolecularDynamics implements Runnable, Terminatable {
 
       // Recompute the kinetic energy after the full-step thermostat operation.
       thermostat.computeKineticEnergy();
-      if (esvSystem != null) {
-        // Adiabatic thermostat does nothing at half step.
-        esvThermostat.computeKineticEnergy();
-      }
 
       // Remove center of mass motion if requested.
       if (thermostat.getRemoveCenterOfMassMotion() && step % removeCOMMotionFrequency == 0) {
         thermostat.centerOfMassMotion(true, false);
       }
 
-      // Collect current kinetic energy, temperature, and total energy.
+      // Handle ESV energy calculations and logging
       if (esvSystem != null) {
-        double kineticEnergy = thermostat.getKineticEnergy();
-        double esvKineticEnergy = esvThermostat.getKineticEnergy();
-        state.setKineticEnergy(kineticEnergy + esvKineticEnergy);
+        double atomicKE = thermostat.getKineticEnergy();
+        double potentialEnergy = state.getPotentialEnergy();
+        double totalEnergy;
+        double esvKE = 0.0; // Initialize ESV kinetic energy
+
+        if (esvSystem.isPhAFED()) {
+          // pH-AFED energy calculations
+          for (int i = 0; i < esvThermostats.length; i++) {
+            Adiabatic t = esvThermostats[i];
+            t.computeKineticEnergy();
+            double k = t.getKineticEnergy();
+            esvKE += k;
+            if (step % 5 == 0) {
+              logger.fine(String.format("pH-AFED ESV %d: mass=%f v=%f KE=%12.6f",
+                      i, esvStates[i].getMass()[0], esvStates[i].v()[0], k));
+            }
+          }
+        } else {
+          // Standard ESV energy calculations
+          esvThermostat.computeKineticEnergy();
+          esvKE = esvThermostat.getKineticEnergy();
+          if (step % 5 == 0) {
+            logger.fine(String.format("Standard ESV: mass=%f v=%f KE=%12.6f",
+                    esvState.getMass()[0], esvState.v()[0], esvKE));
+          }
+        }
+
+        totalEnergy = atomicKE + esvKE + potentialEnergy;
+
+        if (step % 5 == 0) {
+          logger.info(String.format("STEP %d T=%6.2f KE_atom=%12.6f KE_esv=%12.6f POT=%12.6f TOTAL=%12.6f",
+                  step, thermostat.getCurrentTemperature(), atomicKE, esvKE,
+                  potentialEnergy, totalEnergy));
+        }
       }
 
       // Collect running statistics.

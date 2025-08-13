@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="maven-antrun-" default="main">
+  <target name="main">
+    <taskdef classname="org.codehaus.groovy.ant.Groovyc" name="groovyc">
+      <classpath refid="maven.compile.classpath" />
+    </taskdef>
+    <mkdir dir="/nfs/s-iiai70/iahome_deltag/m/ma/maemmad/Desktop/forcefieldx/modules/utilities/target/classes" />
+    <groovyc stacktrace="true" destdir="/nfs/s-iiai70/iahome_deltag/m/ma/maemmad/Desktop/forcefieldx/modules/utilities/target/classes" targetBytecode="21" srcdir="/nfs/s-iiai70/iahome_deltag/m/ma/maemmad/Desktop/forcefieldx/modules/utilities/src/main/groovy/" parameters="true" listfiles="false" verbose="false">
+      <classpath refid="maven.compile.classpath" />
+    </groovyc>
+  </target>
+</project>

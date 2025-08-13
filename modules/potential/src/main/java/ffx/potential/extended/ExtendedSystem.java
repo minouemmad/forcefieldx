@@ -246,20 +246,6 @@ public class ExtendedSystem implements Potential {
      */
     private final List<Residue> tautomerizingResidueList;
     /**
-     * New fields for pH-AFED
-     */
-    private boolean phAFED = false;
-    /**
-     * Friction for the ESV system
-     */
-    private double thetaFriction = 20.0; // ps^-1
-    /**
-     * The system defined theta mass of the fictional particle. Used to fill theta mass array.
-     */
-    private double thetaMass = 500.0; // amu
-    
-    private double thetaTemp = 3000.0; // K
-    /**
      * List of titrating residues.
      */
     private final List<Residue> titratingResidueList;
@@ -301,7 +287,23 @@ public class ExtendedSystem implements Potential {
      * Target system temperature.
      */
     private double currentTemperature = Constants.ROOM_TEMPERATURE;
-
+    /**
+     * Fields for pH-AFED
+     */
+    private boolean phAFED = false;
+    /**
+     * Friction for the ESV system (default: 0.5 when AFED is disabled)
+     */
+    private double thetaFriction = 0.5; // ps^-1
+    /**
+     * The system defined theta mass of the fictional particle.
+     * Default to a small mass (5 amu) when AFED is disabled.
+     */
+    private double thetaMass = 5.0; // amu
+    /**
+     * Default theta temperature: use system temperature when AFED is disabled.
+     */
+    private double thetaTemp = currentTemperature;
     /**
      * Construct extended system with the provided configuration.
      *
@@ -382,6 +384,24 @@ public class ExtendedSystem implements Potential {
         CYStitrBiasMag = properties.getDouble("CYS.titration.bias.magnitude", DISCR_BIAS);
         CYSrestraintConstant = properties.getDouble("CYS.restraint.constant", 0.0);
 
+
+
+        HIDFmod[3] = properties.getDouble("HID.cubic", TitrationUtils.Titration.HIStoHID.cubic);
+        HIDFmod[2] = properties.getDouble("HID.quadratic", TitrationUtils.Titration.HIStoHID.quadratic);
+        HIDFmod[1] = properties.getDouble("HID.linear", TitrationUtils.Titration.HIStoHID.linear);
+        HIDFmod[0] = TitrationUtils.Titration.HIStoHID.offset;
+        HIEFmod[3] = properties.getDouble("HIE.cubic", TitrationUtils.Titration.HIStoHIE.cubic);
+        HIEFmod[2] = properties.getDouble("HIE.quadratic", TitrationUtils.Titration.HIStoHIE.quadratic);
+        HIEFmod[1] = properties.getDouble("HIE.linear", TitrationUtils.Titration.HIStoHIE.linear);
+        HIEFmod[0] = TitrationUtils.Titration.HIStoHIE.offset;
+        HIDtoHIEFmod[3] = properties.getDouble("HIDtoHIE.cubic", TitrationUtils.Titration.HIDtoHIE.cubic);
+        HIDtoHIEFmod[2] = properties.getDouble("HIDtoHIE.quadratic", TitrationUtils.Titration.HIDtoHIE.quadratic);
+        HIDtoHIEFmod[1] = properties.getDouble("HIDtoHIE.linear", TitrationUtils.Titration.HIDtoHIE.linear);
+        HIDtoHIEFmod[0] = TitrationUtils.Titration.HIDtoHIE.offset;
+        HIStitrBiasMag = properties.getDouble("HIS.titration.bias.magnitude", DISCR_BIAS);
+        HIStautBiasMag = properties.getDouble("HIS.tautomer.bias.magnitude", DISCR_BIAS);
+        HISrestraintConstant = properties.getDouble("HIS.restraint.constant", 0.0);
+
         if (phAFED) {
             thetaTemp = properties.getDouble("esv.temperature", 3000.0);
             thetaMass = properties.getDouble("esv.mass", 500.0); 
@@ -407,22 +427,6 @@ public class ExtendedSystem implements Potential {
             logger.info("  LYS titration bias: " + LYStitrBiasMag + " kcal/mol");
             logger.info("  CYS titration bias: " + CYStitrBiasMag + " kcal/mol");
         }
-
-        HIDFmod[3] = properties.getDouble("HID.cubic", TitrationUtils.Titration.HIStoHID.cubic);
-        HIDFmod[2] = properties.getDouble("HID.quadratic", TitrationUtils.Titration.HIStoHID.quadratic);
-        HIDFmod[1] = properties.getDouble("HID.linear", TitrationUtils.Titration.HIStoHID.linear);
-        HIDFmod[0] = TitrationUtils.Titration.HIStoHID.offset;
-        HIEFmod[3] = properties.getDouble("HIE.cubic", TitrationUtils.Titration.HIStoHIE.cubic);
-        HIEFmod[2] = properties.getDouble("HIE.quadratic", TitrationUtils.Titration.HIStoHIE.quadratic);
-        HIEFmod[1] = properties.getDouble("HIE.linear", TitrationUtils.Titration.HIStoHIE.linear);
-        HIEFmod[0] = TitrationUtils.Titration.HIStoHIE.offset;
-        HIDtoHIEFmod[3] = properties.getDouble("HIDtoHIE.cubic", TitrationUtils.Titration.HIDtoHIE.cubic);
-        HIDtoHIEFmod[2] = properties.getDouble("HIDtoHIE.quadratic", TitrationUtils.Titration.HIDtoHIE.quadratic);
-        HIDtoHIEFmod[1] = properties.getDouble("HIDtoHIE.linear", TitrationUtils.Titration.HIDtoHIE.linear);
-        HIDtoHIEFmod[0] = TitrationUtils.Titration.HIDtoHIE.offset;
-        HIStitrBiasMag = properties.getDouble("HIS.titration.bias.magnitude", DISCR_BIAS);
-        HIStautBiasMag = properties.getDouble("HIS.tautomer.bias.magnitude", DISCR_BIAS);
-        HISrestraintConstant = properties.getDouble("HIS.restraint.constant", 0.0);
 
         // Log all of the titration bias magnitudes for each titratable residue.
         logger.info("\n Titration bias magnitudes:");
@@ -1574,14 +1578,19 @@ public class ExtendedSystem implements Potential {
         return thetaFriction;
     }
     /**
-     * Returns an array of theta friction values for each lambda variable.
-     * Currently replicates the global thetaFriction across all ESV variables.
+     * Return theta friction array: if phAFED enabled return per-ESV array (possibly different frictions),
+     * otherwise return an array of length 1 with the single friction (user default or 0.0).
      */
     public double[] getThetaFrictionArray() {
-        int nVars = esvStates.length;
-        double[] frictions = new double[nVars];
-        Arrays.fill(frictions, thetaFriction);
-        return frictions;
+        int n = esvStates.length;
+        double[] out = new double[n];
+        // If you have a per-site friction array in the class, copy it here.
+        // Otherwise, fall back to the single thetaFriction for all sites.
+        double f = getThetaFriction(); // existing scalar fallback
+        for (int i = 0; i < n; i++) {
+            out[i] = f; // or out[i] = perSiteFriction[i] if you have it
+        }
+        return out;
     }
 
     public void setThetaFriction(double thetaFriction) {

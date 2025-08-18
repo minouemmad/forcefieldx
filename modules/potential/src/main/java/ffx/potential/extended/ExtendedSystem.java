@@ -575,7 +575,6 @@ public class ExtendedSystem implements Potential {
         nESVs = extendedResidueList.size();
         nTitr = titratingResidueList.size();
         extendedLambdas = new double[nESVs];
-        esvStates = new SystemState[nESVs];
         //thetaPosition = new double[nESVs];
         //thetaVelocity = new double[nESVs];
         //thetaAccel = new double[nESVs];
@@ -597,25 +596,30 @@ public class ExtendedSystem implements Potential {
             constraints = Collections.emptyList();
         }
 
-        //Theta masses should always be the same for each ESV
-        for (int i = 0; i < nESVs; i++) {
-            esvStates[i] = new SystemState(1);
-            esvStates[i].setMass(new double[] { thetaMass });
-        }
-
-        for (int i = 0; i < nESVs; i++) {
-            if (i < nTitr) {
-                Residue residue = extendedResidueList.get(i);
-                double initialTitrLambda = initialTitrationState(residue, initialTitrationLambda, guessTitrState);
-                initializeThetaArrays(i, initialTitrLambda);
-            } else {
-                double resNum = extendedResidueList.get(i).getResidueNumber();
-                initialTautomerLambda = specialResidues.contains(resNum) && !specialInitTautomer.isEmpty() &&
-                        Math.abs(specialInitTitration.get(specialResidues.indexOf(resNum)) + 1) > 1e-4
-                        ? specialInitTitration.get(specialResidues.indexOf(resNum)) : initialTautomerLambda;
-                initializeThetaArrays(i, initialTautomerLambda);
+        // Build ESV states:
+        //  - pH-AFED: one SystemState per lambda (size=1 each).
+        //  - non-pHAFED: a single SystemState that contains all lambdas (size=nESVs).
+        if (phAFED) {
+            esvStates = new SystemState[nESVs];
+            for (int i = 0; i < nESVs; i++) {
+                esvStates[i] = new SystemState(1);
+                esvStates[i].setMass(new double[]{thetaMass});
+                double initLambda = (i < nTitr) ? initialTitrationLambda : initialTautomerLambda;
+                initializeThetaArrays(i, initLambda);
+            }
+        } else {
+            esvStates = new SystemState[1];
+            esvStates[0] = new SystemState(nESVs);
+            double[] masses = new double[nESVs];
+            Arrays.fill(masses, thetaMass);
+            esvStates[0].setMass(masses);
+            // Initialize each component i inside the single SystemState.
+            for (int i = 0; i < nESVs; i++) {
+                double initLambda = (i < nTitr) ? initialTitrationLambda : initialTautomerLambda;
+                initializeThetaArrays(i, initLambda);
             }
         }
+
         if (esvFilter == null) {
             esvFilter = new ESVFilter(mola.getName());
         }
@@ -728,26 +732,28 @@ public class ExtendedSystem implements Potential {
         // Set the extended lambda value.
         extendedLambdas[index] = lambda;
 
-        // Each esvStates[i] contains a single value, accessed at [0].
-        double[] thetaPosition = esvStates[index].x();
-        double[] thetaVelocity = esvStates[index].v();
-        double[] thetaAccel = esvStates[index].a();
+        // Access the correct state/component layout.
+        final SystemState state = phAFED ? esvStates[index] : esvStates[0];
+        final int comp = phAFED ? 0 : index;
+        double[] thetaPosition = state.x();
+        double[] thetaVelocity = state.v();
+        double[] thetaAccel = state.a();
 
         // Convert lambda to theta and set position.
-        thetaPosition[0] = Math.asin(Math.sqrt(lambda));
+        thetaPosition[comp] = Math.asin(Math.sqrt(lambda));
 
         // Assign a Maxwell-Boltzmann-distributed velocity.
         Random random = new Random();
-        thetaVelocity[0] = random.nextGaussian() * Math.sqrt(kB * 298.15 / thetaMass);
+        thetaVelocity[comp] = random.nextGaussian() * Math.sqrt(kB * 298.15 / thetaMass);
 
         // Compute acceleration based on derivative of U with respect to lambda.
         double dUdL = getDerivatives()[index];
-        double dUdTheta = dUdL * Math.sin(2 * thetaPosition[0]);
-        thetaAccel[0] = -Constants.KCAL_TO_GRAM_ANG2_PER_PS2 * dUdTheta / thetaMass;
+        double dUdTheta = dUdL * Math.sin(2 * thetaPosition[comp]);
+        thetaAccel[comp]= -Constants.KCAL_TO_GRAM_ANG2_PER_PS2 * dUdTheta / thetaMass;
 
         // Optionally log it
         logger.info(String.format("Index: %d, dU/dL: %6.8f, dU/dTheta: %6.8f, Theta Accel: %6.8f, Theta Velocity: %6.8f",
-             index, dUdL, dUdTheta, thetaAccel[0], thetaVelocity[0]));
+             index, dUdL, dUdTheta, thetaAccel[comp], thetaVelocity[comp]));
     }
 
     /**
@@ -1179,13 +1185,16 @@ public class ExtendedSystem implements Potential {
             return;
         }
 
-        // Update extended lambda values from theta positions.
-        for (int i = 0; i < nESVs; i++) {
-            // Check to see if titration/tautomer lambdas are to be fixed
-            if ((!fixTitrationState && i < nTitr) || (!fixTautomerState && i >= nTitr)) {
-                double theta = esvStates[i].x()[0];  // per-residue theta
-                double sinTheta = Math.sin(theta);
-                extendedLambdas[i] = sinTheta * sinTheta;
+        if (phAFED) {
+            for (int i = 0; i < nESVs; i++) {
+                double theta = esvStates[i].x()[0];
+                extendedLambdas[i] = Math.pow(Math.sin(theta), 2);
+            }
+        } else {
+            double[] pos = esvStates[0].x();
+            for (int i = 0; i < nESVs; i++) {
+                double theta = pos[i];
+                extendedLambdas[i] = Math.pow(Math.sin(theta), 2);
             }
         }
 
@@ -1857,15 +1866,21 @@ public class ExtendedSystem implements Potential {
         logger.info("Writing pH Dynamics out to: " + esvFile.getParentFile().getName()
                 + File.separator + esvFile.getName());
 
-        int n = esvStates.length;
+        int n = nESVs;
         double[] thetaPosition = new double[n];
         double[] thetaVelocity = new double[n];
         double[] thetaAccel = new double[n];
-        for (int i = 0; i < n; i++) {
-            thetaPosition[i] = esvStates[i].x()[0];
-            thetaVelocity[i] = esvStates[i].v()[0];
-            thetaAccel[i] = esvStates[i].a()[0];
-        }
+        if (phAFED) {
+                for (int i = 0; i < n; i++) {
+                    thetaPosition[i] = esvStates[i].x()[0];
+                    thetaVelocity[i] = esvStates[i].v()[0];
+                    thetaAccel[i] = esvStates[i].a()[0];
+                }
+            } else {
+                System.arraycopy(esvStates[0].x(), 0, thetaPosition, 0, n);
+                System.arraycopy(esvStates[0].v(), 0, thetaVelocity, 0, n);
+                System.arraycopy(esvStates[0].a(), 0, thetaAccel, 0, n);
+            }
 
         return esvFilter.writeESV(esvFile, thetaPosition, thetaVelocity, thetaAccel,
                 titratingResidueList, esvHistogram, constantSystemPh);
@@ -1880,7 +1895,7 @@ public class ExtendedSystem implements Potential {
      * @return whether the read was successful or not
      */
     public boolean readESVInfoFrom(File esvFile) {
-        int n = esvStates.length;
+        int n = nESVs;
         double[] thetaPosition = new double[n];
         double[] thetaVelocity = new double[n];
         double[] thetaAccel = new double[n];
@@ -1888,10 +1903,16 @@ public class ExtendedSystem implements Potential {
         boolean success = esvFilter.readESV(esvFile, thetaPosition, thetaVelocity, thetaAccel, esvHistogram);
         if (!success) return false;
 
-        for (int i = 0; i < n; i++) {
-            esvStates[i].x()[0] = thetaPosition[i];
-            esvStates[i].v()[0] = thetaVelocity[i];
-            esvStates[i].a()[0] = thetaAccel[i];
+        if (phAFED) {
+            for (int i = 0; i < n; i++) {
+                esvStates[i].x()[0] = thetaPosition[i];
+                esvStates[i].v()[0] = thetaVelocity[i];
+                esvStates[i].a()[0] = thetaAccel[i];
+                }
+        } else {
+            System.arraycopy(thetaPosition, 0, esvStates[0].x(), 0, n);
+            System.arraycopy(thetaVelocity, 0, esvStates[0].v(), 0, n);
+            System.arraycopy(thetaAccel, 0, esvStates[0].a(), 0, n);
         }
         return true;
     }
@@ -1917,14 +1938,20 @@ public class ExtendedSystem implements Potential {
      */
     public void writeRestart() {
         String esvName = FileUtils.relativePathTo(restartFile).toString();
-        int n = esvStates.length;
+        int n = nESVs;
         double[] thetaPosition = new double[n];
         double[] thetaVelocity = new double[n];
         double[] thetaAccel = new double[n];
-        for (int i = 0; i < n; i++) {
-            thetaPosition[i] = esvStates[i].x()[0];
-            thetaVelocity[i] = esvStates[i].v()[0];
-            thetaAccel[i] = esvStates[i].a()[0];
+        if (phAFED) {
+            for (int i = 0; i < n; i++) {
+                thetaPosition[i] = esvStates[i].x()[0];
+                thetaVelocity[i] = esvStates[i].v()[0];
+                thetaAccel[i] = esvStates[i].a()[0];
+                }
+        } else {
+            System.arraycopy(esvStates[0].x(), 0, thetaPosition, 0, n);
+            System.arraycopy(esvStates[0].v(), 0, thetaVelocity, 0, n);
+            System.arraycopy(esvStates[0].a(), 0, thetaAccel, 0, n);
         }
 
         if (esvFilter.writeESV(restartFile, thetaPosition, thetaVelocity, thetaAccel,
@@ -1972,18 +1999,29 @@ public class ExtendedSystem implements Potential {
     }
 
     public double[] getThetaAccel() {
-        int n = esvStates.length;
+        int n = nESVs;
         double[] accel = new double[n];
-        for (int i = 0; i < n; i++) {
-            accel[i] = esvStates[i].a()[0];
+        if (phAFED) {
+            for (int i = 0; i < n; i++) {
+                accel[i] = esvStates[i].a()[0];
+            }
+        } else {
+            double[] a = esvStates[0].a();
+            System.arraycopy(a, 0, accel, 0, n);
         }
         return accel;
     }
 
     @Override
     public double energyAndGradient(double[] x, double[] g) {
-        for (int i = 0; i < esvStates.length; i++) {
-            esvStates[i].x()[0] = x[i];
+        if (phAFED) {
+            for (int i = 0; i < nESVs; i++) {
+                esvStates[i].x()[0] = x[i];
+            }
+        } else {
+            // Single SystemState that holds all components.
+            double[] pos = esvStates[0].x();
+            System.arraycopy(x, 0, pos, 0, nESVs);
         }
         updateLambdas();
         fillESVgradient(g);
@@ -2030,7 +2068,7 @@ public class ExtendedSystem implements Potential {
         }
 
         for (int i = 0; i < dEdL.length; i++) {
-            double theta = esvStates[i].x()[0];
+            final double theta = phAFED ? esvStates[i].x()[0] : esvStates[0].x()[i];
             dEdTheta[i] = dEdL[i] * sin(2 * theta);
 
             if (phAFED && logger.isLoggable(Level.FINE)) {
@@ -2047,9 +2085,14 @@ public class ExtendedSystem implements Potential {
     }
 
     public double[] getThetaMassArray() {
-        double[] mass = new double[esvStates.length];
-        for (int i = 0; i < esvStates.length; i++) {
-            mass[i] = esvStates[i].getMass()[0];
+        double[] mass = new double[nESVs];
+        if (phAFED) {
+            for (int i = 0; i < nESVs; i++) {
+                mass[i] = esvStates[i].getMass()[0];
+            }
+        } else {
+            double[] m = esvStates[0].getMass();
+            System.arraycopy(m, 0, mass, 0, nESVs);
         }
         return mass;
     }
@@ -2076,10 +2119,15 @@ public class ExtendedSystem implements Potential {
     }
 
     public double[] getThetaVelocity() {
-        int n = esvStates.length;
+        int n = nESVs;
         double[] velocity = new double[n];
-        for (int i = 0; i < n; i++) {
-            velocity[i] = esvStates[i].v()[0];
+        if (phAFED) {
+            for (int i = 0; i < n; i++) {
+                velocity[i] = esvStates[i].v()[0];
+            }
+        } else {
+            double[] v = esvStates[0].v();
+            System.arraycopy(v, 0, velocity, 0, n);
         }
         return velocity;
     }
@@ -2108,10 +2156,15 @@ public class ExtendedSystem implements Potential {
     }
 
     public double[] getThetaPosition() {
-        int n = esvStates.length;
+        int n = nESVs;
         double[] position = new double[n];
-        for (int i = 0; i < n; i++) {
-            position[i] = esvStates[i].x()[0];
+        if (phAFED) {
+            for (int i = 0; i < n; i++) {
+                position[i] = esvStates[i].x()[0];
+            }
+        } else {
+            double[] x = esvStates[0].x();
+            System.arraycopy(x, 0, position, 0, n);
         }
         return position;
     }

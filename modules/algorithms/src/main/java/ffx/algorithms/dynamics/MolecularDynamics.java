@@ -601,8 +601,9 @@ public class MolecularDynamics implements Runnable, Terminatable {
         double thetaMass = esvSystem.getThetaMass();
 
         for (int i = 0; i < esvStates.length; i++) {
-            esvStates[i].setMass(new double[]{thetaMass});
-            double friction = (frictions != null && i < frictions.length) ? frictions[i] : 0.0;
+           // Each pH-AFED SystemState holds 1 variable.
+           esvStates[i].setMass(new double[]{thetaMass});            
+           double friction = (frictions != null && i < frictions.length) ? frictions[i] : 0.0;
 
             Stochastic integrator = new Stochastic(friction, esvStates[i]);
             if (properties.containsKey("randomseed")) {
@@ -617,10 +618,14 @@ public class MolecularDynamics implements Runnable, Terminatable {
         }
 
     } else {
-        // Standard ESV setup: single variables
+        // Standard ESV setup: one SystemState holding all lambdas
         this.esvState = esvSystem.getStates()[0];
         double thetaMass = esvSystem.getThetaMass();
-        esvState.setMass(new double[]{thetaMass});
+        int n = esvSystem.getNumberOfVariables();
+        double[] masses = new double[n];
+        Arrays.fill(masses, thetaMass);
+        esvState.setMass(masses);
+
         double friction = esvSystem.getThetaFriction();
 
         this.esvIntegrator = new Stochastic(friction, esvState);
@@ -1675,10 +1680,11 @@ private void initializeEnergies() {
       if (esvSystem != null) {
         double[] dEdL = esvSystem.postForce();
         if (esvSystem.isPhAFED()) {
-            for (int i = 0; i < esvIntegrators.size(); i++) {
-                logger.fine(String.format("pH-AFED Integrator %d applying dEdL: %12.6f", i, dEdL[i]));
-                esvIntegrators.get(i).postForce(dEdL);
-            }
+          for (int i = 0; i < esvIntegrators.size(); i++) {
+            logger.fine(String.format("pH-AFED Integrator %d applying dEdL: %12.6f", i, dEdL[i]));
+            // Each pH-AFED ESV integrator controls exactly 1 DOF; pass its 1-component force.
+            esvIntegrators.get(i).postForce(new double[]{ dEdL[i] });
+          }
         } else {
           logger.fine(String.format("Standard ESV applying dEdL: %12.6f", dEdL[0]));
           esvIntegrator.postForce(dEdL);

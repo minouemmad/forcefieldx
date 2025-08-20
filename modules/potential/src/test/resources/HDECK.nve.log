@@ -2,8 +2,8 @@
 
         FORCE FIELD X - Polyglot Software for Molecular Biophysics 
 
-        Version 1.0.0-6821  August 2025 
-        Git Revision  6671aa85ec5c6bc12f51a43e9ab68ff4597b0627 
+        Version 1.0.0-6822  August 2025 
+        Git Revision  af9e39989eab45063fee3bc24a50a1609914a6b2 
  
         Please cite the following reference when using Force Field X:
 
@@ -26,11 +26,11 @@
 
  _________________________________________________________________________
 
- Mon Aug 18 12:06:53 CDT 2025
- Process ID 2266421 on e-deltag003.ecn.uiowa.edu.
+ Wed Aug 20 12:35:03 CDT 2025
+ Process ID 2433350 on e-deltag003.ecn.uiowa.edu.
 
  Command line arguments:
- [test.PhDynamics, --pH, 7.4, -i, Verlet, -b, Adiabatic, --thetaFriction, 0.0, -n, 100, -r, 0.001, HDECK.pdb]
+ [test.PhDynamics, --pH, 7.4, -i, Verlet, -b, Adiabatic, --thetaFriction, 0, -n, 100, -r, 0.001, HDECK.pdb]
 
  Starting up the command line interface.
 
@@ -78,13 +78,13 @@
 
   Overall system charge:                  2.755
 
- Opened HDECK.pdb in 0.334 sec.
+ Opened HDECK.pdb in 0.41 sec.
 
  System Resources
-  Total CPU time:          12.51 (sec)
-  System load average:      4.17
+  Total CPU time:          12.78 (sec)
+  System load average:      3.22
   Open file handles:         153 of 1048576 allowed
-  System memory:           19902 MB free out of  31821 MB
+  System memory:           19744 MB free out of  31821 MB
   System swap space:        2007 MB free out of   2047 MB
   JVM memory:               4063 MB free out of   4096 MB
 Special residues: []
@@ -132,39 +132,39 @@ Residue: 4-ASD Atom:      45-HD1 ASD 4 (  -6.16,  -0.40,  12.17) A atomType: 505
 Residue: 4-ASD Atom:      46-HD2 ASD 4 (  -5.47,  -2.21,  12.32) A atomType: 505 35
 Residue: 6-GLD Atom:      70-HE1 GLD 6 ( -10.54,  -1.54,  17.41) A atomType: 512 35
 Residue: 6-GLD Atom:      71-HE2 GLD 6 ( -10.35,  -1.14,  15.52) A atomType: 512 35
-Index: 0, dU/dL: 34.51269881, dU/dTheta: 34.51269881, Theta Accel: -2888.02263602, Theta Velocity: -7.04459642
-Index: 1, dU/dL: -63.76620533, dU/dTheta: -63.76620533, Theta Accel: 5335.95606242, Theta Velocity: -7.12266417
-Index: 2, dU/dL: -75.43062191, dU/dTheta: -75.43062191, Theta Accel: 6312.03444134, Theta Velocity: 3.44130856
-Index: 3, dU/dL: -77.47413406, dU/dTheta: -77.47413406, Theta Accel: 6483.03553856, Theta Velocity: -1.99790077
-Index: 4, dU/dL: 42.75325896, dU/dTheta: 42.75325896, Theta Accel: -3577.59270985, Theta Velocity: -1.94976041
-Index: 5, dU/dL: 1.32615060, dU/dTheta: 1.32615060, Theta Accel: -110.97228199, Theta Velocity: -9.23236782
-Index: 6, dU/dL: 0.00000000, dU/dTheta: 0.00000000, Theta Accel: -0.00000000, Theta Velocity: -2.05851495
-Index: 7, dU/dL: 0.00000000, dU/dTheta: 0.00000000, Theta Accel: -0.00000000, Theta Velocity: -0.65910271
+ESV[0] -> Residue 2-HIS (TITRATION)
+ESV[1] -> Residue 4-ASD (TITRATION)
+ESV[2] -> Residue 6-GLD (TITRATION)
+ESV[3] -> Residue 8-CYS (TITRATION)
+ESV[4] -> Residue 10-LYS (TITRATION)
+ESV[5] -> Residue 2-HIS (TAUTOMER)
+ESV[6] -> Residue 4-ASD (TAUTOMER)
+ESV[7] -> Residue 6-GLD (TAUTOMER)
  Attached extended system (8 variables) to PME.
 
  Attached extended system with 8 residues.
 
  Computed Potential Energy
   Bond Stretching             28.05522192          134        0.000 ( 0.02025)
-  Angle Bending               19.63246647          236        0.019 ( 2.25818)
-  Stretch-Bend                -1.43838685          201        0.003
+  Angle Bending               19.63246647          236        0.002 ( 2.25818)
+  Stretch-Bend                -1.43838685          201        0.000
   Out-of-Plane Bend            0.00032350           81        0.002
-  Torsional Angle             33.46613466          335        0.000
-  Pi-Orbital Torsion           0.00001133           15        0.001
-  Van der Waals              100.87747258         8541        0.070
+  Torsional Angle             33.46613466          335        0.001
+  Pi-Orbital Torsion           0.00001133           15        0.000
+  Van der Waals              100.87747258         8541        0.049
   Atomic Multipoles         -199.31401014         8541
-  Polarization               -20.88123460         8541        0.091
+  Polarization               -20.88123460         8541        0.119
   ExtendedSystemBias        -204.14692293  
   Titration Lambdas: 0.5000, 0.5000, 0.5000, 0.5000, 0.5000, 
   Tautomer Lambdas: 0.5000, 0.5000, 0.5000
     Discretizer            0.00000000
     Acidostat             -2.08729793
     Fmod                -202.05962500
-  Total Potential           -243.74892406  (Kcal/mole)        0.194 (sec)
+  Total Potential           -243.74892406  (Kcal/mole)        0.183 (sec)
 
  Running molecular dynamics on /nfs/s-iiai70/iahome_deltag/m/ma/maemmad/Desktop/forcefieldx/modules/potential/src/test/resources/HDECK.pdb
-Created single ESV integrator with friction=0.000000 mass=5.000000
-Attached extended system (ffx.potential.extended.ExtendedSystem@55bf35e5). pH-AFED: false
+Standard ESV: All 8 lambdas in one state. Mass=5.0000 Friction=0.0000
+Attached extended system (ffx.potential.extended.ExtendedSystem@71bb8b34). pH-AFED: false
 
  Molecular dynamics in the NVE ensemble
   Integrator:          Velocity Verlet
@@ -176,12 +176,12 @@ Attached extended system (ffx.potential.extended.ExtendedSystem@55bf35e5). pH-AF
   Archive file:     /nfs/s-iiai70/iahome_deltag/m/ma/maemmad/Desktop/forcefieldx/modules/potential/src/test/resources/HDECK.arc
   Restart file:     /nfs/s-iiai70/iahome_deltag/m/ma/maemmad/Desktop/forcefieldx/modules/potential/src/test/resources/HDECK.dyn
   Center of Mass   (      -8.078,      -5.271,      14.520)
-  Linear Momentum  (      -0.069,      -0.798,       0.098)
-  Angular Momentum (   -3840.276,    6689.932,    3340.943)
+  Linear Momentum  (      -0.256,       0.254,       0.068)
+  Angular Momentum (    7635.623,  -10692.163,     122.242)
   Center of mass motion removed.
   Center of Mass   (      -8.078,      -5.271,      14.520)
-  Linear Momentum  (      -0.059,      -0.688,       0.084)
-  Angular Momentum (   -3883.075,    6689.967,    3311.061)
+  Linear Momentum  (      -0.221,       0.219,       0.059)
+  Angular Momentum (    7652.022,  -10680.246,     139.572)
   Target temperature:            298.15 Kelvin
   Current temperature:           298.15 Kelvin
   Number of variables:              402
@@ -191,151 +191,351 @@ Attached extended system (ffx.potential.extended.ExtendedSystem@55bf35e5). pH-AF
 
       Time      Kinetic    Potential        Total     Temp      CPU
       psec     kcal/mol     kcal/mol     kcal/mol        K      sec
-               119.4549    -243.7489    -124.2940   298.15
+               120.6251    -243.7489    -123.1238   298.15
   Thermostat: Adiabatic
   Integrator: Velocity Verlet
   Lambda temperature: 298.15 K
   Lambda friction: 0.00 1/ps
   Lambda mass: 5.000000
  COM will be removed every 100 step(s).
- 1.000e-03     110.1882    -235.6780    -125.4898   277.94    0.157
- 2.000e-03      95.0463    -222.0029    -126.9566   239.75    0.138
- 3.000e-03      86.2967    -217.2249    -130.9282   217.68    0.063
- 4.000e-03      88.6452    -225.8409    -137.1956   223.60    0.058
-STEP 5 T=240.96 KE_atom=   95.528834 KE_esv=   21.044227 POT= -240.117468 TOTAL= -123.544407
- 5.000e-03      95.5288    -240.1175    -144.5886   240.96    0.064
- 6.000e-03      98.4817    -250.5549    -152.0732   248.41    0.097
- 7.000e-03      95.6124    -254.5922    -158.9798   241.17    0.064
- 8.000e-03      92.9173    -258.3092    -165.3919   234.38    0.090
- 9.000e-03      96.6452    -268.1657    -171.5205   243.78    0.072
-STEP 10 T=266.11 KE_atom=  105.498893 KE_esv=   53.569012 POT= -282.621549 TOTAL= -123.553645
- 1.000e-02     105.4989    -282.6215    -177.1227   266.11    0.093
- 1.100e-02     111.6520    -293.1825    -181.5305   281.63    0.067
- 1.200e-02     109.5513    -293.8574    -184.3061   276.33    0.079
- 1.300e-02     102.3904    -288.3554    -185.9650   258.27    0.093
- 1.400e-02      97.7676    -285.1040    -187.3364   246.61    0.078
-STEP 15 T=249.60 KE_atom=   98.951341 KE_esv=   65.661928 POT= -287.709693 TOTAL= -123.096424
- 1.500e-02      98.9513    -287.7097    -188.7584   249.60    0.074
- 1.600e-02     103.0965    -292.8235    -189.7270   260.05    0.066
- 1.700e-02     107.9725    -298.2557    -190.2832   272.35    0.075
- 1.800e-02     112.4741    -303.4958    -191.0217   283.71    0.070
- 1.900e-02     112.6383    -303.8500    -191.2117   284.12    0.053
-STEP 20 T=274.60 KE_atom=  108.863771 KE_esv=   67.446334 POT= -299.306689 TOTAL= -122.996585
- 2.000e-02     108.8638    -299.3067    -190.4429   274.60    0.087
- 2.100e-02     108.8477    -298.5195    -189.6718   274.56    0.072
- 2.200e-02     115.2800    -304.5158    -189.2359   290.78    0.062
- 2.300e-02     120.3834    -308.3535    -187.9701   303.66    0.069
- 2.400e-02     117.6474    -302.7629    -185.1155   296.75    0.097
-STEP 25 T=278.49 KE_atom=  110.406295 KE_esv=   58.017865 POT= -291.476701 TOTAL= -123.052541
- 2.500e-02     110.4063    -291.4767    -181.0704   278.49    0.040
- 2.600e-02     106.8578    -283.1685    -176.3107   269.54    0.044
- 2.700e-02     111.9658    -283.2651    -171.2993   282.42    0.046
- 2.800e-02     122.1091    -288.1987    -166.0896   308.01    0.057
- 2.900e-02     128.3569    -288.5344    -160.1775   323.77    0.034
-STEP 30 T=320.03 KE_atom=  126.876067 KE_esv=   30.386042 POT= -280.709810 TOTAL= -123.447700
- 3.000e-02     126.8761    -280.7098    -153.8337   320.03    0.026
- 3.100e-02     122.2925    -270.1228    -147.8303   308.47    0.045
- 3.200e-02     122.5147    -265.7299    -143.2152   309.03    0.042
- 3.300e-02     129.6240    -270.3654    -140.7414   326.96    0.049
- 3.400e-02     135.7296    -275.6963    -139.9667   342.36    0.115
-STEP 35 T=334.75 KE_atom=  132.708970 KE_esv=   16.366095 POT= -272.650428 TOTAL= -123.575364
- 3.500e-02     132.7090    -272.6504    -139.9415   334.75    0.064
- 3.600e-02     124.7543    -265.8466    -141.0923   314.68    0.054
- 3.700e-02     121.8455    -266.4783    -144.6328   307.34    0.051
- 3.800e-02     123.9828    -273.7137    -149.7309   312.73    0.060
- 3.900e-02     124.9781    -280.0220    -155.0439   315.25    0.073
-STEP 40 T=311.00 KE_atom=  123.296825 KE_esv=   37.005776 POT= -283.593855 TOTAL= -123.291253
- 4.000e-02     123.2968    -283.5939    -160.2970   311.00    0.048
- 4.100e-02     120.9294    -286.2509    -165.3214   305.03    0.039
- 4.200e-02     119.1081    -288.6935    -169.5854   300.44    0.021
- 4.300e-02     118.6203    -291.3878    -172.7675   299.21    0.064
- 4.400e-02     119.9141    -294.8904    -174.9763   302.47    0.057
-STEP 45 T=306.90 KE_atom=  121.671193 KE_esv=   52.615244 POT= -297.690862 TOTAL= -123.404425
- 4.500e-02     121.6712    -297.6909    -176.0197   306.90    0.081
- 4.600e-02     123.1189    -299.1455    -176.0266   310.56    0.022
- 4.700e-02     124.2902    -299.8364    -175.5463   313.51    0.039
- 4.800e-02     123.8688    -298.4364    -174.5676   312.45    0.062
- 4.900e-02     121.8847    -295.1886    -173.3039   307.44    0.045
-STEP 50 T=304.32 KE_atom=  120.644998 KE_esv=   49.170906 POT= -292.841707 TOTAL= -123.025802
- 5.000e-02     120.6450    -292.8417    -172.1967   304.32    0.087
- 5.100e-02     121.7741    -293.3049    -171.5307   307.16    0.065
- 5.200e-02     123.9642    -295.3286    -171.3645   312.69    0.072
- 5.300e-02     123.5886    -295.0021    -171.4134   311.74    0.050
- 5.400e-02     119.1106    -290.3383    -171.2277   300.44    0.058
-STEP 55 T=290.28 KE_atom=  115.078909 KE_esv=   48.190205 POT= -286.124309 TOTAL= -122.855194
- 5.500e-02     115.0789    -286.1243    -171.0454   290.28    0.076
- 5.600e-02     116.3577    -287.8660    -171.5083   293.50    0.094
- 5.700e-02     119.1914    -291.0263    -171.8350   300.65    0.038
- 5.800e-02     117.1360    -288.1302    -170.9942   295.46    0.023
- 5.900e-02     110.7438    -279.8142    -169.0704   279.34    0.027
-STEP 60 T=265.57 KE_atom=  105.283526 KE_esv=   43.423101 POT= -271.690136 TOTAL= -122.983509
- 6.000e-02     105.2835    -271.6901    -166.4066   265.57    0.070
- 6.100e-02     104.1222    -267.2855    -163.1634   262.64    0.034
- 6.200e-02     106.0841    -265.4130    -159.3289   267.59    0.038
- 6.300e-02     107.6743    -262.5636    -154.8893   271.60    0.038
- 6.400e-02     107.5532    -257.6096    -150.0564   271.29    0.072
-STEP 65 T=273.07 KE_atom=  108.257209 KE_esv=   22.619769 POT= -253.906706 TOTAL= -123.029728
- 6.500e-02     108.2572    -253.9067    -145.6495   273.07    0.046
- 6.600e-02     111.3998    -253.7868    -142.3870   281.00    0.036
- 6.700e-02     114.4390    -254.6652    -140.2262   288.66    0.025
- 6.800e-02     114.9094    -254.1860    -139.2767   289.85    0.022
- 6.900e-02     112.9729    -252.8317    -139.8589   284.96    0.044
-STEP 70 T=276.70 KE_atom=  109.697459 KE_esv=   18.809726 POT= -251.719940 TOTAL= -123.212755
- 7.000e-02     109.6975    -251.7199    -142.0225   276.70    0.127
- 7.100e-02     105.9249    -251.5727    -145.6477   267.19    0.055
- 7.200e-02     101.9442    -252.3993    -150.4552   257.14    0.032
- 7.300e-02      98.1083    -253.9679    -155.8597   247.47    0.063
- 7.400e-02      96.7701    -258.2735    -161.5034   244.09    0.047
-STEP 75 T=253.02 KE_atom=  100.307431 KE_esv=   44.250889 POT= -267.695346 TOTAL= -123.137026
- 7.500e-02     100.3074    -267.6953    -167.3879   253.02    0.074
- 7.600e-02     106.1432    -279.0912    -172.9480   267.74    0.037
- 7.700e-02     109.1373    -286.4492    -177.3119   275.29    0.040
- 7.800e-02     108.8697    -289.2150    -180.3452   274.61    0.088
- 7.900e-02     109.6723    -292.2928    -182.6205   276.64    0.044
-STEP 80 T=285.30 KE_atom=  113.106951 KE_esv=   61.066885 POT= -297.621362 TOTAL= -123.447526
- 8.000e-02     113.1070    -297.6214    -184.5144   285.30    0.031
- 8.100e-02     114.6074    -300.2592    -185.6518   289.09    0.029
- 8.200e-02     109.8601    -295.6170    -185.7569   277.11    0.057
- 8.300e-02     101.0892    -286.2498    -185.1606   254.99    0.029
- 8.400e-02      94.7407    -279.3344    -184.5937   238.97    0.028
-STEP 85 T=236.65 KE_atom=   93.817962 KE_esv=   61.220478 POT= -278.094596 TOTAL= -123.056155
- 8.500e-02      93.8180    -278.0946    -184.2766   236.65    0.046
- 8.600e-02      95.4563    -279.3435    -183.8872   240.78    0.084
- 8.700e-02      95.4522    -278.5010    -183.0488   240.77    0.043
- 8.800e-02      93.2532    -274.8749    -181.6217   235.22    0.034
- 8.900e-02      92.3410    -272.1558    -179.8148   232.92    0.039
-STEP 90 T=240.41 KE_atom=   95.308052 KE_esv=   54.591072 POT= -273.092742 TOTAL= -123.193618
- 9.000e-02      95.3081    -273.0927    -177.7847   240.41    0.032
- 9.100e-02      99.9063    -275.0535    -175.1472   252.00    0.034
- 9.200e-02     102.1237    -273.5139    -171.3901   257.60    0.039
- 9.300e-02     101.5213    -268.1286    -166.6073   256.08    0.039
- 9.400e-02     100.5995    -261.8978    -161.2983   253.75    0.030
-STEP 95 T=253.65 KE_atom=  100.559758 KE_esv=   32.520256 POT= -256.342799 TOTAL= -123.262785
- 9.500e-02     100.5598    -256.3428    -155.7830   253.65    0.041
- 9.600e-02     100.4026    -250.6504    -150.2479   253.26    0.039
- 9.700e-02      99.5421    -244.4582    -144.9161   251.09    0.020
- 9.800e-02      99.8395    -240.2337    -140.3942   251.84    0.032
- 9.900e-02     102.6494    -239.9970    -137.3476   258.92    0.031
-STEP 100 T=265.93 KE_atom=  105.426669 KE_esv=   12.240947 POT= -241.064263 TOTAL= -123.396648
- 1.000e-01     105.4267    -241.0643    -135.6376   265.93    0.024
+Step 1 | Non-pH-AFED mass=5.0000 KE=2.424346 kcal/mol Temp=304.99K
+Step        1 Lambda Temperatures (K): θ=304.99
+ 1.000e-03     108.8577    -233.4916    -124.6339   274.58    0.100
+Step 2 | Non-pH-AFED mass=5.0000 KE=2.440376 kcal/mol Temp=307.01K
+Step        2 Lambda Temperatures (K): θ=307.01
+ 2.000e-03      94.5334    -219.7995    -125.2661   238.45    0.112
+Step 3 | Non-pH-AFED mass=5.0000 KE=4.241755 kcal/mol Temp=533.63K
+Step        3 Lambda Temperatures (K): θ=533.63
+ 3.000e-03      89.9765    -219.0913    -129.1148   226.96    0.058
+Step 4 | Non-pH-AFED mass=5.0000 KE=7.883903 kcal/mol Temp=991.83K
+Step        4 Lambda Temperatures (K): θ=991.83
+ 4.000e-03      94.2074    -229.2687    -135.0613   237.63    0.063
+Step 5 | Non-pH-AFED mass=5.0000 KE=13.092172 kcal/mol Temp=1647.06K
+Step        5 Lambda Temperatures (K): θ=1647.06
+STEP 5 T=245.81 KE_atom=   97.449248 KE_esv=   19.464171 POT= -239.173144 TOTAL= -122.259725
+ 5.000e-03      97.4492    -239.1731    -141.7239   245.81    0.058
+Step 6 | Non-pH-AFED mass=5.0000 KE=19.464171 kcal/mol Temp=2448.69K
+Step        6 Lambda Temperatures (K): θ=2448.69
+ 6.000e-03      95.1477    -243.7149    -148.5672   240.00    0.087
+Step 7 | Non-pH-AFED mass=5.0000 KE=26.508892 kcal/mol Temp=3334.95K
+Step        7 Lambda Temperatures (K): θ=3334.95
+ 7.000e-03      91.0184    -246.2019    -155.1835   229.59    0.094
+Step 8 | Non-pH-AFED mass=5.0000 KE=33.703088 kcal/mol Temp=4240.01K
+Step        8 Lambda Temperatures (K): θ=4240.01
+ 8.000e-03      92.9472    -254.9432    -161.9960   234.45    0.063
+Step 9 | Non-pH-AFED mass=5.0000 KE=40.558797 kcal/mol Temp=5102.49K
+Step        9 Lambda Temperatures (K): θ=5102.49
+ 9.000e-03     101.4810    -270.3160    -168.8349   255.98    0.071
+Step 10 | Non-pH-AFED mass=5.0000 KE=46.688063 kcal/mol Temp=5873.59K
+Step       10 Lambda Temperatures (K): θ=5873.59
+STEP 10 T=272.12 KE_atom=  107.880124 KE_esv=   51.848049 POT= -282.251277 TOTAL= -122.523104
+ 1.000e-02     107.8801    -282.2513    -174.3712   272.12    0.054
+Step 11 | Non-pH-AFED mass=5.0000 KE=51.848049 kcal/mol Temp=6522.74K
+Step       11 Lambda Temperatures (K): θ=6522.74
+ 1.100e-02     106.9962    -285.1083    -178.1121   269.89    0.053
+Step 12 | Non-pH-AFED mass=5.0000 KE=55.954698 kcal/mol Temp=7039.37K
+Step       12 Lambda Temperatures (K): θ=7039.37
+ 1.200e-02     103.0855    -283.9077    -180.8222   260.02    0.077
+Step 13 | Non-pH-AFED mass=5.0000 KE=59.063682 kcal/mol Temp=7430.50K
+Step       13 Lambda Temperatures (K): θ=7430.50
+ 1.300e-02     101.2448    -284.3743    -183.1295   255.38    0.048
+Step 14 | Non-pH-AFED mass=5.0000 KE=61.328095 kcal/mol Temp=7715.37K
+Step       14 Lambda Temperatures (K): θ=7715.37
+ 1.400e-02     101.4525    -286.2356    -184.7831   255.90    0.075
+Step 15 | Non-pH-AFED mass=5.0000 KE=62.947753 kcal/mol Temp=7919.13K
+Step       15 Lambda Temperatures (K): θ=7919.13
+STEP 15 T=257.85 KE_atom=  102.222132 KE_esv=   64.123431 POT= -288.277430 TOTAL= -121.931866
+ 1.500e-02     102.2221    -288.2774    -186.0553   257.85    0.071
+Step 16 | Non-pH-AFED mass=5.0000 KE=64.123431 kcal/mol Temp=8067.04K
+Step       16 Lambda Temperatures (K): θ=8067.04
+ 1.600e-02     102.5167    -289.3156    -186.7989   258.59    0.086
+Step 17 | Non-pH-AFED mass=5.0000 KE=65.024008 kcal/mol Temp=8180.34K
+Step       17 Lambda Temperatures (K): θ=8180.34
+ 1.700e-02     104.7723    -291.9982    -187.2259   264.28    0.026
+Step 18 | Non-pH-AFED mass=5.0000 KE=65.768540 kcal/mol Temp=8274.00K
+Step       18 Lambda Temperatures (K): θ=8274.00
+ 1.800e-02     111.6589    -299.9928    -188.3339   281.65    0.053
+Step 19 | Non-pH-AFED mass=5.0000 KE=66.420529 kcal/mol Temp=8356.03K
+Step       19 Lambda Temperatures (K): θ=8356.03
+ 1.900e-02     117.6698    -307.0178    -189.3480   296.81    0.065
+Step 20 | Non-pH-AFED mass=5.0000 KE=66.989659 kcal/mol Temp=8427.63K
+Step       20 Lambda Temperatures (K): θ=8427.63
+STEP 20 T=296.46 KE_atom=  117.530034 KE_esv=   67.436789 POT= -306.924511 TOTAL= -121.957688
+ 2.000e-02     117.5300    -306.9245    -189.3945   296.46    0.054
+Step 21 | Non-pH-AFED mass=5.0000 KE=67.436789 kcal/mol Temp=8483.88K
+Step       21 Lambda Temperatures (K): θ=8483.88
+ 2.100e-02     116.0092    -305.1717    -189.1625   292.62    0.037
+Step 22 | Non-pH-AFED mass=5.0000 KE=67.679675 kcal/mol Temp=8514.43K
+Step       22 Lambda Temperatures (K): θ=8514.43
+ 2.200e-02     118.6317    -308.1346    -189.5029   299.24    0.065
+Step 23 | Non-pH-AFED mass=5.0000 KE=67.598971 kcal/mol Temp=8504.28K
+Step       23 Lambda Temperatures (K): θ=8504.28
+ 2.300e-02     120.8086    -310.2656    -189.4570   304.73    0.096
+Step 24 | Non-pH-AFED mass=5.0000 KE=67.045865 kcal/mol Temp=8434.70K
+Step       24 Lambda Temperatures (K): θ=8434.70
+ 2.400e-02     116.3284    -304.3720    -188.0436   293.43    0.113
+Step 25 | Non-pH-AFED mass=5.0000 KE=65.853556 kcal/mol Temp=8284.70K
+Step       25 Lambda Temperatures (K): θ=8284.70
+STEP 25 T=271.64 KE_atom=  107.692544 KE_esv=   63.855174 POT= -293.260173 TOTAL= -121.712455
+ 2.500e-02     107.6925    -293.2602    -185.5676   271.64    0.046
+Step 26 | Non-pH-AFED mass=5.0000 KE=63.855174 kcal/mol Temp=8033.29K
+Step       26 Lambda Temperatures (K): θ=8033.29
+ 2.600e-02     102.3447    -284.5898    -182.2450   258.15    0.046
+Step 27 | Non-pH-AFED mass=5.0000 KE=60.910416 kcal/mol Temp=7662.83K
+Step       27 Lambda Temperatures (K): θ=7662.83
+ 2.700e-02     105.7104    -284.2035    -178.4931   266.64    0.044
+Step 28 | Non-pH-AFED mass=5.0000 KE=56.940596 kcal/mol Temp=7163.40K
+Step       28 Lambda Temperatures (K): θ=7163.40
+ 2.800e-02     114.1974    -288.5075    -174.3102   288.05    0.037
+Step 29 | Non-pH-AFED mass=5.0000 KE=51.966506 kcal/mol Temp=6537.64K
+Step       29 Lambda Temperatures (K): θ=6537.64
+ 2.900e-02     117.8205    -286.3870    -168.5666   297.19    0.069
+Step 30 | Non-pH-AFED mass=5.0000 KE=46.138491 kcal/mol Temp=5804.45K
+Step       30 Lambda Temperatures (K): θ=5804.45
+STEP 30 T=289.99 KE_atom=  114.964186 KE_esv=   39.747072 POT= -276.438714 TOTAL= -121.727456
+ 3.000e-02     114.9642    -276.4387    -161.4745   289.99    0.021
+Step 31 | Non-pH-AFED mass=5.0000 KE=39.747072 kcal/mol Temp=5000.38K
+Step       31 Lambda Temperatures (K): θ=5000.38
+ 3.100e-02     114.2326    -268.7384    -154.5058   288.14    0.050
+Step 32 | Non-pH-AFED mass=5.0000 KE=33.206785 kcal/mol Temp=4177.58K
+Step       32 Lambda Temperatures (K): θ=4177.58
+ 3.200e-02     120.8827    -269.5893    -148.7066   304.91    0.053
+Step 33 | Non-pH-AFED mass=5.0000 KE=27.013646 kcal/mol Temp=3398.45K
+Step       33 Lambda Temperatures (K): θ=3398.45
+ 3.300e-02     129.5727    -273.5036    -143.9309   326.83    0.075
+Step 34 | Non-pH-AFED mass=5.0000 KE=21.684070 kcal/mol Temp=2727.96K
+Step       34 Lambda Temperatures (K): θ=2727.96
+ 3.400e-02     131.8845    -271.9891    -140.1046   332.67    0.052
+Step 35 | Non-pH-AFED mass=5.0000 KE=17.687188 kcal/mol Temp=2225.13K
+Step       35 Lambda Temperatures (K): θ=2225.13
+STEP 35 T=316.74 KE_atom=  125.570831 KE_esv=   15.382791 POT= -262.833765 TOTAL= -121.880142
+ 3.500e-02     125.5708    -262.8338    -137.2629   316.74    0.053
+Step 36 | Non-pH-AFED mass=5.0000 KE=15.382791 kcal/mol Temp=1935.23K
+Step       36 Lambda Temperatures (K): θ=1935.23
+ 3.600e-02     118.3231    -254.4465    -136.1234   298.46    0.090
+Step 37 | Non-pH-AFED mass=5.0000 KE=14.973925 kcal/mol Temp=1883.79K
+Step       37 Lambda Temperatures (K): θ=1883.79
+ 3.700e-02     118.7632    -256.7925    -138.0293   299.57    0.058
+Step 38 | Non-pH-AFED mass=5.0000 KE=16.478427 kcal/mol Temp=2073.07K
+Step       38 Lambda Temperatures (K): θ=2073.07
+ 3.800e-02     122.4654    -264.4826    -142.0173   308.91    0.061
+Step 39 | Non-pH-AFED mass=5.0000 KE=19.720856 kcal/mol Temp=2480.98K
+Step       39 Lambda Temperatures (K): θ=2480.98
+ 3.900e-02     120.4212    -266.9193    -146.4981   303.75    0.069
+Step 40 | Non-pH-AFED mass=5.0000 KE=24.346408 kcal/mol Temp=3062.90K
+Step       40 Lambda Temperatures (K): θ=3062.90
+STEP 40 T=287.68 KE_atom=  114.050064 KE_esv=   29.859343 POT= -265.520144 TOTAL= -121.610738
+ 4.000e-02     114.0501    -265.5201    -151.4701   287.68    0.035
+Step 41 | Non-pH-AFED mass=5.0000 KE=29.859343 kcal/mol Temp=3756.45K
+Step       41 Lambda Temperatures (K): θ=3756.45
+ 4.100e-02     110.4748    -267.7414    -157.2666   278.66    0.047
+Step 42 | Non-pH-AFED mass=5.0000 KE=35.685921 kcal/mol Temp=4489.46K
+Step       42 Lambda Temperatures (K): θ=4489.46
+ 4.200e-02     111.3640    -274.4695    -163.1055   280.90    0.033
+Step 43 | Non-pH-AFED mass=5.0000 KE=41.254765 kcal/mol Temp=5190.05K
+Step       43 Lambda Temperatures (K): θ=5190.05
+ 4.300e-02     113.6838    -281.7844    -168.1006   286.76    0.036
+Step 44 | Non-pH-AFED mass=5.0000 KE=46.079910 kcal/mol Temp=5797.08K
+Step       44 Lambda Temperatures (K): θ=5797.08
+ 4.400e-02     114.8019    -286.7392    -171.9374   289.58    0.046
+Step 45 | Non-pH-AFED mass=5.0000 KE=49.828191 kcal/mol Temp=6268.63K
+Step       45 Lambda Temperatures (K): θ=6268.63
+STEP 45 T=288.24 KE_atom=  114.271794 KE_esv=   52.354928 POT= -288.508493 TOTAL= -121.881771
+ 4.500e-02     114.2718    -288.5085    -174.2367   288.24    0.056
+Step 46 | Non-pH-AFED mass=5.0000 KE=52.354928 kcal/mol Temp=6586.51K
+Step       46 Lambda Temperatures (K): θ=6586.51
+ 4.600e-02     114.9467    -290.4315    -175.4847   289.94    0.044
+Step 47 | Non-pH-AFED mass=5.0000 KE=53.700443 kcal/mol Temp=6755.78K
+Step       47 Lambda Temperatures (K): θ=6755.78
+ 4.700e-02     117.3236    -293.5272    -176.2036   295.94    0.051
+Step 48 | Non-pH-AFED mass=5.0000 KE=54.052309 kcal/mol Temp=6800.04K
+Step       48 Lambda Temperatures (K): θ=6800.04
+ 4.800e-02     117.0667    -292.9054    -175.8387   295.29    0.069
+Step 49 | Non-pH-AFED mass=5.0000 KE=53.688281 kcal/mol Temp=6754.25K
+Step       49 Lambda Temperatures (K): θ=6754.25
+ 4.900e-02     113.7013    -288.3574    -174.6561   286.80    0.055
+Step 50 | Non-pH-AFED mass=5.0000 KE=52.917657 kcal/mol Temp=6657.30K
+Step       50 Lambda Temperatures (K): θ=6657.30
+STEP 50 T=282.40 KE_atom=  111.958312 KE_esv=   52.033987 POT= -285.568536 TOTAL= -121.576238
+ 5.000e-02     111.9583    -285.5685    -173.6102   282.40    0.039
+Step 51 | Non-pH-AFED mass=5.0000 KE=52.033987 kcal/mol Temp=6546.13K
+Step       51 Lambda Temperatures (K): θ=6546.13
+ 5.100e-02     113.6261    -286.7650    -173.1389   286.61    0.026
+Step 52 | Non-pH-AFED mass=5.0000 KE=51.284166 kcal/mol Temp=6451.80K
+Step       52 Lambda Temperatures (K): θ=6451.80
+ 5.200e-02     114.9555    -287.8792    -172.9237   289.96    0.025
+Step 53 | Non-pH-AFED mass=5.0000 KE=50.852401 kcal/mol Temp=6397.48K
+Step       53 Lambda Temperatures (K): θ=6397.48
+ 5.300e-02     112.4343    -285.3240    -172.8897   283.60    0.033
+Step 54 | Non-pH-AFED mass=5.0000 KE=50.854108 kcal/mol Temp=6397.70K
+Step       54 Lambda Temperatures (K): θ=6397.70
+ 5.400e-02     106.8841    -279.8715    -172.9874   269.60    0.040
+Step 55 | Non-pH-AFED mass=5.0000 KE=51.334010 kcal/mol Temp=6458.07K
+Step       55 Lambda Temperatures (K): θ=6458.07
+STEP 55 T=262.23 KE_atom=  103.960849 KE_esv=   52.264507 POT= -277.554506 TOTAL= -121.329150
+ 5.500e-02     103.9608    -277.5545    -173.5937   262.23    0.047
+Step 56 | Non-pH-AFED mass=5.0000 KE=52.264507 kcal/mol Temp=6575.13K
+Step       56 Lambda Temperatures (K): θ=6575.13
+ 5.600e-02     106.9847    -282.4536    -175.4689   269.86    0.042
+Step 57 | Non-pH-AFED mass=5.0000 KE=53.543785 kcal/mol Temp=6736.07K
+Step       57 Lambda Temperatures (K): θ=6736.07
+ 5.700e-02     108.8928    -286.3724    -177.4795   274.67    0.063
+Step 58 | Non-pH-AFED mass=5.0000 KE=54.996018 kcal/mol Temp=6918.77K
+Step       58 Lambda Temperatures (K): θ=6918.77
+ 5.800e-02     103.0056    -281.4697    -178.4640   259.82    0.043
+Step 59 | Non-pH-AFED mass=5.0000 KE=56.377706 kcal/mol Temp=7092.59K
+Step       59 Lambda Temperatures (K): θ=7092.59
+ 5.900e-02      94.3618    -273.2025    -178.8407   238.02    0.054
+Step 60 | Non-pH-AFED mass=5.0000 KE=57.394823 kcal/mol Temp=7220.55K
+Step       60 Lambda Temperatures (K): θ=7220.55
+STEP 60 T=230.84 KE_atom=   91.517259 KE_esv=   57.734719 POT= -270.747268 TOTAL= -121.495290
+ 6.000e-02      91.5173    -270.7473    -179.2300   230.84    0.048
+Step 61 | Non-pH-AFED mass=5.0000 KE=57.734719 kcal/mol Temp=7263.31K
+Step       61 Lambda Temperatures (K): θ=7263.31
+ 6.100e-02      94.7587    -273.8152    -179.0565   239.02    0.037
+Step 62 | Non-pH-AFED mass=5.0000 KE=57.113224 kcal/mol Temp=7185.12K
+Step       62 Lambda Temperatures (K): θ=7185.12
+ 6.200e-02      98.1935    -275.7464    -177.5529   247.68    0.050
+Step 63 | Non-pH-AFED mass=5.0000 KE=55.330718 kcal/mol Temp=6960.87K
+Step       63 Lambda Temperatures (K): θ=6960.87
+ 6.300e-02      97.6701    -272.1240    -174.4539   246.36    0.045
+Step 64 | Non-pH-AFED mass=5.0000 KE=52.323764 kcal/mol Temp=6582.58K
+Step       64 Lambda Temperatures (K): θ=6582.58
+ 6.400e-02      95.1351    -264.9025    -169.7675   239.97    0.078
+Step 65 | Non-pH-AFED mass=5.0000 KE=48.196491 kcal/mol Temp=6063.35K
+Step       65 Lambda Temperatures (K): θ=6063.35
+STEP 65 T=246.40 KE_atom=   97.686078 KE_esv=   43.220540 POT= -262.312600 TOTAL= -121.405982
+ 6.500e-02      97.6861    -262.3126    -164.6265   246.40    0.100
+Step 66 | Non-pH-AFED mass=5.0000 KE=43.220540 kcal/mol Temp=5437.35K
+Step       66 Lambda Temperatures (K): θ=5437.35
+ 6.600e-02     106.5717    -266.4484    -159.8768   268.82    0.053
+Step 67 | Non-pH-AFED mass=5.0000 KE=37.801958 kcal/mol Temp=4755.67K
+Step       67 Lambda Temperatures (K): θ=4755.67
+ 6.700e-02     113.1682    -268.0396    -154.8714   285.46    0.066
+Step 68 | Non-pH-AFED mass=5.0000 KE=32.423694 kcal/mol Temp=4079.06K
+Step       68 Lambda Temperatures (K): θ=4079.06
+ 6.800e-02     111.6276    -261.3419    -149.7142   281.57    0.051
+Step 69 | Non-pH-AFED mass=5.0000 KE=27.578515 kcal/mol Temp=3469.51K
+Step       69 Lambda Temperatures (K): θ=3469.51
+ 6.900e-02     105.6364    -250.9350    -145.2986   266.46    0.049
+Step 70 | Non-pH-AFED mass=5.0000 KE=23.706976 kcal/mol Temp=2982.45K
+Step       70 Lambda Temperatures (K): θ=2982.45
+STEP 70 T=257.68 KE_atom=  102.156700 KE_esv=   21.149624 POT= -244.792731 TOTAL= -121.486407
+ 7.000e-02     102.1567    -244.7927    -142.6360   257.68    0.051
+Step 71 | Non-pH-AFED mass=5.0000 KE=21.149624 kcal/mol Temp=2660.73K
+Step       71 Lambda Temperatures (K): θ=2660.73
+ 7.100e-02     102.7793    -244.6573    -141.8780   259.25    0.042
+Step 72 | Non-pH-AFED mass=5.0000 KE=20.115456 kcal/mol Temp=2530.62K
+Step       72 Lambda Temperatures (K): θ=2530.62
+ 7.200e-02     103.5366    -246.2578    -142.7212   261.16    0.042
+Step 73 | Non-pH-AFED mass=5.0000 KE=20.664424 kcal/mol Temp=2599.69K
+Step       73 Lambda Temperatures (K): θ=2599.69
+ 7.300e-02     100.9271    -245.4963    -144.5692   254.58    0.069
+Step 74 | Non-pH-AFED mass=5.0000 KE=22.702822 kcal/mol Temp=2856.13K
+Step       74 Lambda Temperatures (K): θ=2856.13
+ 7.400e-02      98.2155    -245.5653    -147.3498   247.74    0.053
+Step 75 | Non-pH-AFED mass=5.0000 KE=25.993818 kcal/mol Temp=3270.15K
+Step       75 Lambda Temperatures (K): θ=3270.15
+STEP 75 T=255.86 KE_atom=  101.433020 KE_esv=   30.186732 POT= -253.250236 TOTAL= -121.630484
+ 7.500e-02     101.4330    -253.2502    -151.8172   255.86    0.029
+Step 76 | Non-pH-AFED mass=5.0000 KE=30.186732 kcal/mol Temp=3797.64K
+Step       76 Lambda Temperatures (K): θ=3797.64
+ 7.600e-02     107.7748    -264.8668    -157.0920   271.85    0.041
+Step 77 | Non-pH-AFED mass=5.0000 KE=34.865518 kcal/mol Temp=4386.25K
+Step       77 Lambda Temperatures (K): θ=4386.25
+ 7.700e-02     110.1227    -271.9471    -161.8243   277.77    0.018
+Step 78 | Non-pH-AFED mass=5.0000 KE=39.609905 kcal/mol Temp=4983.12K
+Step       78 Lambda Temperatures (K): θ=4983.12
+ 7.800e-02     108.3570    -274.2663    -165.9093   273.32    0.036
+Step 79 | Non-pH-AFED mass=5.0000 KE=44.055682 kcal/mol Temp=5542.42K
+Step       79 Lambda Temperatures (K): θ=5542.42
+ 7.900e-02     106.9204    -276.7152    -169.7948   269.70    0.029
+Step 80 | Non-pH-AFED mass=5.0000 KE=47.938803 kcal/mol Temp=6030.94K
+Step       80 Lambda Temperatures (K): θ=6030.94
+STEP 80 T=267.86 KE_atom=  106.191904 KE_esv=   51.113701 POT= -279.425661 TOTAL= -122.120056
+ 8.000e-02     106.1919    -279.4257    -173.2338   267.86    0.034
+Step 81 | Non-pH-AFED mass=5.0000 KE=51.113701 kcal/mol Temp=6430.35K
+Step       81 Lambda Temperatures (K): θ=6430.35
+ 8.100e-02     102.8265    -278.5621    -175.7356   259.37    0.029
+Step 82 | Non-pH-AFED mass=5.0000 KE=53.546197 kcal/mol Temp=6736.37K
+Step       82 Lambda Temperatures (K): θ=6736.37
+ 8.200e-02      95.5999    -272.8797    -177.2798   241.14    0.041
+Step 83 | Non-pH-AFED mass=5.0000 KE=55.289148 kcal/mol Temp=6955.64K
+Step       83 Lambda Temperatures (K): θ=6955.64
+ 8.300e-02      87.6837    -265.6838    -178.0001   221.17    0.041
+Step 84 | Non-pH-AFED mass=5.0000 KE=56.450797 kcal/mol Temp=7101.79K
+Step       84 Lambda Temperatures (K): θ=7101.79
+ 8.400e-02      84.8079    -263.4369    -178.6291   213.92    0.038
+Step 85 | Non-pH-AFED mass=5.0000 KE=57.163798 kcal/mol Temp=7191.48K
+Step       85 Lambda Temperatures (K): θ=7191.48
+STEP 85 T=220.38 KE_atom=   87.370034 KE_esv=   57.559643 POT= -266.933995 TOTAL= -122.004319
+ 8.500e-02      87.3700    -266.9340    -179.5640   220.38    0.064
+Step 86 | Non-pH-AFED mass=5.0000 KE=57.559643 kcal/mol Temp=7241.28K
+Step       86 Lambda Temperatures (K): θ=7241.28
+ 8.600e-02      88.7561    -268.6656    -179.9095   223.88    0.033
+Step 87 | Non-pH-AFED mass=5.0000 KE=57.749883 kcal/mol Temp=7265.22K
+Step       87 Lambda Temperatures (K): θ=7265.22
+ 8.700e-02      86.5968    -266.1142    -179.5174   218.43    0.030
+Step 88 | Non-pH-AFED mass=5.0000 KE=57.812965 kcal/mol Temp=7273.15K
+Step       88 Lambda Temperatures (K): θ=7273.15
+ 8.800e-02      86.7177    -265.8013    -179.0835   218.74    0.043
+Step 89 | Non-pH-AFED mass=5.0000 KE=57.784590 kcal/mol Temp=7269.58K
+Step       89 Lambda Temperatures (K): θ=7269.58
+ 8.900e-02      94.2711    -273.4951    -179.2241   237.79    0.045
+Step 90 | Non-pH-AFED mass=5.0000 KE=57.650443 kcal/mol Temp=7252.71K
+Step       90 Lambda Temperatures (K): θ=7252.71
+STEP 90 T=266.56 KE_atom=  105.678665 KE_esv=   57.342253 POT= -285.209913 TOTAL= -122.188996
+ 9.000e-02     105.6787    -285.2099    -179.5312   266.56    0.033
+Step 91 | Non-pH-AFED mass=5.0000 KE=57.342253 kcal/mol Temp=7213.94K
+Step       91 Lambda Temperatures (K): θ=7213.94
+ 9.100e-02     112.4024    -291.6594    -179.2571   283.52    0.044
+Step 92 | Non-pH-AFED mass=5.0000 KE=56.740468 kcal/mol Temp=7138.23K
+Step       92 Lambda Temperatures (K): θ=7138.23
+ 9.200e-02     110.3417    -288.1781    -177.8364   278.33    0.040
+Step 93 | Non-pH-AFED mass=5.0000 KE=55.687933 kcal/mol Temp=7005.81K
+Step       93 Lambda Temperatures (K): θ=7005.81
+ 9.300e-02     105.1662    -280.6605    -175.4943   265.27    0.037
+Step 94 | Non-pH-AFED mass=5.0000 KE=54.017574 kcal/mol Temp=6795.67K
+Step       94 Lambda Temperatures (K): θ=6795.67
+ 9.400e-02     105.2276    -278.5166    -173.2890   265.43    0.051
+Step 95 | Non-pH-AFED mass=5.0000 KE=51.592548 kcal/mol Temp=6490.59K
+Step       95 Lambda Temperatures (K): θ=6490.59
+STEP 95 T=273.05 KE_atom=  108.250993 KE_esv=   48.350411 POT= -278.951439 TOTAL= -122.350036
+ 9.500e-02     108.2510    -278.9514    -170.7004   273.05    0.058
+Step 96 | Non-pH-AFED mass=5.0000 KE=48.350411 kcal/mol Temp=6082.72K
+Step       96 Lambda Temperatures (K): θ=6082.72
+ 9.600e-02     106.1656    -272.8165    -166.6510   267.79    0.032
+Step 97 | Non-pH-AFED mass=5.0000 KE=44.336758 kcal/mol Temp=5577.78K
+Step       97 Lambda Temperatures (K): θ=5577.78
+ 9.700e-02      99.0046    -260.4320    -161.4274   249.73    0.022
+Step 98 | Non-pH-AFED mass=5.0000 KE=39.714570 kcal/mol Temp=4996.29K
+Step       98 Lambda Temperatures (K): θ=4996.29
+ 9.800e-02      94.2321    -250.4112    -156.1791   237.69    0.059
+Step 99 | Non-pH-AFED mass=5.0000 KE=34.745361 kcal/mol Temp=4371.14K
+Step       99 Lambda Temperatures (K): θ=4371.14
+ 9.900e-02      95.5426    -247.0219    -151.4792   241.00    0.052
+Step 100 | Non-pH-AFED mass=5.0000 KE=29.750806 kcal/mol Temp=3742.80K
+Step      100 Lambda Temperatures (K): θ=3742.80
+STEP 100 T=249.80 KE_atom=   99.030927 KE_esv=   25.069923 POT= -246.163506 TOTAL= -122.062656
+ 1.000e-01      99.0309    -246.1635    -147.1326   249.80    0.035
  Completed      100 time steps
 
  Done with an MD round.
- 2-HIS Deprotonation Fraction at pH 7.4: 0.9999767447268668
+ 2-HIS Deprotonation Fraction at pH 7.4: 0.9999629643346543
  4-ASD Deprotonation Fraction at pH 7.4: 0.0
  6-GLD Deprotonation Fraction at pH 7.4: 0.0
  8-CYS Deprotonation Fraction at pH 7.4: 0.0
- 10-LYS Deprotonation Fraction at pH 7.4: 0.9999750006249845
+ 10-LYS Deprotonation Fraction at pH 7.4: 0.9999705891003207
  ESV: 2-HIS (0) pH: 7.40
         X  [0.0-0.1]  [0.1-0.2]  [0.2-0.3]  [0.3-0.4]  [0.4-0.5]  [0.5-0.6]  [0.6-0.7]  [0.7-0.8]  [0.8-0.9]  [0.9-1.0]
  λ
- [0.0-0.1]         0         0         0        17        10        11         5         0         0         0
- [0.1-0.2]         0         0         0         5         0         0         5         0         0         0
- [0.2-0.3]         0         0         0         5         0         0         4         0         0         0
- [0.3-0.4]         0         0         0         3         3         0         4         0         0         0
- [0.4-0.5]         0         0         0         0        10         3         5         0         0         0
- [0.5-0.6]         0         0         0         0         0        10         0         0         0         0
- [0.6-0.7]         0         0         0         0         0         0         0         0         0         0
+ [0.0-0.1]         0         0         0         0         0         8        15         4         0         0
+ [0.1-0.2]         0         0         0         0         5         1         1         3         0         0
+ [0.2-0.3]         0         0         2         1         3         0         3         0         0         0
+ [0.3-0.4]         0         0         2         4         0         0         4         0         0         0
+ [0.4-0.5]         0         0         3         4         0         0         7         0         0         0
+ [0.5-0.6]         0         0         4         4         0         9         0         0         0         0
+ [0.6-0.7]         0         0        13         0         0         0         0         0         0         0
  [0.7-0.8]         0         0         0         0         0         0         0         0         0         0
  [0.8-0.9]         0         0         0         0         0         0         0         0         0         0
  [0.9-1.0]         0         0         0         0         0         0         0         0         0         0
@@ -347,12 +547,12 @@ STEP 100 T=265.93 KE_atom=  105.426669 KE_esv=   12.240947 POT= -241.064263 TOTA
  [0.1-0.2]         0         0         0         0         0         0         0         0         0         0
  [0.2-0.3]         0         0         0         0         0         0         0         0         0         0
  [0.3-0.4]         0         0         0         0         0         0         0         0         0         0
- [0.4-0.5]         0         0         0         0         2         0         0         0         0         0
- [0.5-0.6]         0         0         0         0         5         0         0         0         0         0
- [0.6-0.7]         0         0         0         0         9         0         0         0         0         0
- [0.7-0.8]         0         0         0         0         4        11         0         0         0         0
- [0.8-0.9]         0         0         0         0         4        21         0         0         0         0
- [0.9-1.0]         0         0         0         0         6        38         0         0         0         0
+ [0.4-0.5]         0         0         0         0         0         0         0         0         0         0
+ [0.5-0.6]         0         0         0         0         0         5         0         0         0         0
+ [0.6-0.7]         0         0         0         0         0         2         0         0         0         0
+ [0.7-0.8]         0         0         0        12         4        14         3         0         0         0
+ [0.8-0.9]         0         0         0        10         6         8         2         0         0         0
+ [0.9-1.0]         0         0         0         0         8        26         0         0         0         0
 
  ESV: 6-GLD (2) pH: 7.40
         X  [0.0-0.1]  [0.1-0.2]  [0.2-0.3]  [0.3-0.4]  [0.4-0.5]  [0.5-0.6]  [0.6-0.7]  [0.7-0.8]  [0.8-0.9]  [0.9-1.0]
@@ -361,12 +561,12 @@ STEP 100 T=265.93 KE_atom=  105.426669 KE_esv=   12.240947 POT= -241.064263 TOTA
  [0.1-0.2]         0         0         0         0         0         0         0         0         0         0
  [0.2-0.3]         0         0         0         0         0         0         0         0         0         0
  [0.3-0.4]         0         0         0         0         0         0         0         0         0         0
- [0.4-0.5]         0         0         0         0         0         0         0         0         0         0
- [0.5-0.6]         0         0         0         0         4        19         0         0         0         0
- [0.6-0.7]         0         0         0         0         5        11         0         0         0         0
- [0.7-0.8]         0         0         0         0         4         9         0         0         0         0
- [0.8-0.9]         0         0         0         0         5        11         0         0         0         0
- [0.9-1.0]         0         0         0         0        11        21         0         0         0         0
+ [0.4-0.5]         0         0         0         0         1         0         0         0         0         0
+ [0.5-0.6]         0         0         0         0        10         8         0         0         0         0
+ [0.6-0.7]         0         0         0         0        10         6         0         0         0         0
+ [0.7-0.8]         0         0         0         0         6         6         0         0         0         0
+ [0.8-0.9]         0         0         0         0         9         9         0         0         0         0
+ [0.9-1.0]         0         0         0         0        19        16         0         0         0         0
 
  ESV: 8-CYS (3) pH: 7.40
         X  [0.0-0.1]  [0.1-0.2]  [0.2-0.3]  [0.3-0.4]  [0.4-0.5]  [0.5-0.6]  [0.6-0.7]  [0.7-0.8]  [0.8-0.9]  [0.9-1.0]
@@ -374,22 +574,22 @@ STEP 100 T=265.93 KE_atom=  105.426669 KE_esv=   12.240947 POT= -241.064263 TOTA
  [0.0-0.1]         0         0         0         0         0         0         0         0         0         0
  [0.1-0.2]         0         0         0         0         0         0         0         0         0         0
  [0.2-0.3]         0         0         0         0         0         0         0         0         0         0
- [0.3-0.4]         0         0         0         0         0         0         0         0         0         0
- [0.4-0.5]         0         0         0         0         0         0         0         0         0        10
- [0.5-0.6]         0         0         0         0         0         0         0         0         0        19
+ [0.3-0.4]         0         0         0         0         0         0         0         0         0         1
+ [0.4-0.5]         0         0         0         0         0         0         0         0         0        12
+ [0.5-0.6]         0         0         0         0         0         0         0         0         0        17
  [0.6-0.7]         0         0         0         0         0         0         0         0         0        14
- [0.7-0.8]         0         0         0         0         0         0         0         0         0        13
- [0.8-0.9]         0         0         0         0         0         0         0         0         0        14
- [0.9-1.0]         0         0         0         0         0         0         0         0         0        30
+ [0.7-0.8]         0         0         0         0         0         0         0         0         0        12
+ [0.8-0.9]         0         0         0         0         0         0         0         0         0        13
+ [0.9-1.0]         0         0         0         0         0         0         0         0         0        31
 
  ESV: 10-LYS (4) pH: 7.40
         X  [0.0-0.1]  [0.1-0.2]  [0.2-0.3]  [0.3-0.4]  [0.4-0.5]  [0.5-0.6]  [0.6-0.7]  [0.7-0.8]  [0.8-0.9]  [0.9-1.0]
  λ
- [0.0-0.1]        40         0         0         0         0         0         0         0         0         0
+ [0.0-0.1]        34         0         0         0         0         0         0         0         0         0
  [0.1-0.2]        14         0         0         0         0         0         0         0         0         0
  [0.2-0.3]        12         0         0         0         0         0         0         0         0         0
- [0.3-0.4]         9         0         0         0         0         0         0         0         0         0
- [0.4-0.5]        14         0         0         0         0         0         0         0         0         0
+ [0.3-0.4]        12         0         0         0         0         0         0         0         0         0
+ [0.4-0.5]        17         0         0         0         0         0         0         0         0         0
  [0.5-0.6]        11         0         0         0         0         0         0         0         0         0
  [0.6-0.7]         0         0         0         0         0         0         0         0         0         0
  [0.7-0.8]         0         0         0         0         0         0         0         0         0         0
@@ -398,4 +598,4 @@ STEP 100 T=265.93 KE_atom=  105.426669 KE_esv=   12.240947 POT= -241.064263 TOTA
 
 
 
- Script wall clock time:  7.126 (sec)
+ Script wall clock time:  6.760 (sec)

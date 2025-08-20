@@ -71,6 +71,7 @@ import ffx.potential.parsers.XPHFilter;
 import ffx.potential.parsers.XYZFilter;
 import ffx.utilities.TinkerUtils;
 import org.apache.commons.configuration2.CompositeConfiguration;
+import static ffx.utilities.Constants.kB;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -154,21 +155,28 @@ public class MolecularDynamics implements Runnable, Terminatable {
     if (potential instanceof ExtendedSystem esv) {
         if (esv.isPhAFED()) {
             double thetaTemp = esv.getThetaTemp();
+            logger.info(format("\n pH-AFED Initialization:"));
+            logger.info(format(" Setting up %d lambda thermostats at %.2f K", 
+                esvThermostats.length, thetaTemp));
             for (Adiabatic t : esvThermostats) {
                 t.setTargetTemperature(thetaTemp);
             }
             double thetaMass = esv.getThetaMass();
+            logger.info(format(" Lambda masses set to %.2f amu", thetaMass));
             for (SystemState state : esvStates) {
                 state.setMass(new double[]{thetaMass});
             }
         } else {
             double mdTemp = thermostat.getTargetTemperature();
             if (esvThermostat != null) {
-                esvThermostat.setTargetTemperature(mdTemp);
-            }
+              esvThermostat.setTargetTemperature(mdTemp);
+              logger.info(format("\n Standard ESV Thermostat:"));
+              logger.info(format(" Setting up single thermostat at %.2f K", mdTemp));            }
             if (esvState != null) {
-                esvState.setMass(new double[]{esv.getThetaMass()});
-            }
+                double thetaMass = esv.getThetaMass();
+                esvState.setMass(new double[]{thetaMass});
+                logger.info(format(" Lambda mass set to %.2f amu", thetaMass));
+              }
         }
     }
 }
@@ -191,6 +199,9 @@ public class MolecularDynamics implements Runnable, Terminatable {
    * Temperature Stats for logging.
    */
   private final RunningStatistics temperatureStats = new RunningStatistics();
+  
+  private RunningStatistics[] lambdaTemperatureStats;
+
   /**
    * Potential Energy Stats for logging.
    */
@@ -599,8 +610,11 @@ public class MolecularDynamics implements Runnable, Terminatable {
 
         double[] frictions = esvSystem.getThetaFrictionArray();
         double thetaMass = esvSystem.getThetaMass();
+        lambdaTemperatureStats = new RunningStatistics[esvStates.length];
 
         for (int i = 0; i < esvStates.length; i++) {
+          lambdaTemperatureStats[i] = new RunningStatistics();
+
            // Each pH-AFED SystemState holds 1 variable.
            esvStates[i].setMass(new double[]{thetaMass});            
            double friction = (frictions != null && i < frictions.length) ? frictions[i] : 0.0;
@@ -611,13 +625,18 @@ public class MolecularDynamics implements Runnable, Terminatable {
             }
             this.esvIntegrators.add(integrator);
             this.esvThermostats[i] = new Adiabatic(esvStates[i], potential.getVariableTypes());
-
+            this.esvThermostats[i].setRemoveCenterOfMassMotion(false); 
+            
             logger.info(String.format(
-                "Created pH-AFED ESV integrator %d with friction=%f mass=%f",
-                i, friction, thetaMass));
+              "pH-AFED ESV[%d]: Residue=%s Mass=%.4f Friction=%.4f",
+              i, esvSystem.getResidues().get(i),
+              thetaMass, friction));
+          
         }
 
     } else {
+        lambdaTemperatureStats = new RunningStatistics[1];
+        lambdaTemperatureStats[0] = new RunningStatistics();
         // Standard ESV setup: one SystemState holding all lambdas
         this.esvState = esvSystem.getStates()[0];
         double thetaMass = esvSystem.getThetaMass();
@@ -633,10 +652,10 @@ public class MolecularDynamics implements Runnable, Terminatable {
             esvIntegrator.setRandomSeed(properties.getInt("randomseed", 0));
         }
         this.esvThermostat = new Adiabatic(esvState, potential.getVariableTypes());
-
+        this.esvThermostat.setRemoveCenterOfMassMotion(false); 
         logger.info(String.format(
-            "Created single ESV integrator with friction=%f mass=%f",
-            friction, thetaMass));
+          "Standard ESV: All %d lambdas in one state. Mass=%.4f Friction=%.4f",
+          n, thetaMass, friction));      
     }
 
     printEsvFrequency = intervalToFreq(reportFreq, "Reporting (logging) interval");
@@ -1230,6 +1249,66 @@ public class MolecularDynamics implements Runnable, Terminatable {
   }
 
   /**
+   * Report lambda temperatures and diagnostics for ESV variables.
+   */
+  private void reportLambdaTemperatures(long step) {
+    if (esvSystem == null) return;
+
+    StringBuilder tempReport = new StringBuilder();
+    tempReport.append(format("Step %8d Lambda Temperatures (K):", step));
+
+    if (esvSystem.isPhAFED() && esvStates != null) {
+        for (int i = 0; i < esvStates.length; i++) {
+            double[] v = esvStates[i].v();
+            double[] a = esvStates[i].a();
+            double[] mass = esvStates[i].getMass();
+            int dof = esvStates[i].getNumberOfVariables();
+
+            double raw = 0.0;
+            for (int j = 0; j < dof; j++) {
+                if (mass[j] > 0.0) {
+                    raw += mass[j] * v[j] * v[j];
+                }
+            }
+            double temp = raw / (kB * dof);
+            double ke = 0.5 * raw / KCAL_TO_GRAM_ANG2_PER_PS2;
+
+            tempReport.append(format(" λ%d=%.2f", i, temp));
+
+            double thetaMass = (mass.length > 0 ? mass[0] : Double.NaN);
+            logger.info(String.format(
+                "Step %d | ESV[%d] mass=%.4f vel=%.6f accel=%.6f KE=%.6f kcal/mol Temp=%.2fK",
+                step, i, thetaMass, v[0], a[0], ke, temp
+            ));
+        }
+    } else if (esvState != null) {
+        double[] v = esvState.v();
+        double[] a = esvState.a();
+        double[] mass = esvState.getMass();
+        int dof = esvState.getNumberOfVariables();
+
+        double raw = 0.0;
+        for (int j = 0; j < dof; j++) {
+            if (mass[j] > 0.0) {
+                raw += mass[j] * v[j] * v[j];
+            }
+        }
+        double temp = raw / (kB * dof);
+        double ke = 0.5 * raw / KCAL_TO_GRAM_ANG2_PER_PS2;
+
+        tempReport.append(format(" θ=%.2f", temp));
+
+        double thetaMass = (mass.length > 0 ? mass[0] : Double.NaN);
+        logger.info(String.format(
+            "Step %d | Non-pH-AFED mass=%.4f KE=%.6f kcal/mol Temp=%.2fK",
+            step, thetaMass, ke, temp
+        ));
+    }
+
+    logger.info(tempReport.toString());
+  }
+
+  /**
    * Set the archive file for each MolecularAssembly (if not already set).
    */
   private void setArchiveFile() {
@@ -1608,6 +1687,8 @@ private void initializeEnergies() {
 
     // Main MD loop to take molecular dynamics steps.
     for (long step = 1; step <= nSteps; step++) {
+      reportLambdaTemperatures(step);
+  
 
       // Update lambda for non-equilibrium simulations.
       if (nonEquilibriumLambda && nonEquilibriumDynamics.isUpdateStep(step)) {

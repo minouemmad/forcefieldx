@@ -647,6 +647,7 @@ public class ExtendedSystem implements Potential {
                 updateLambdas();
             }
         }
+        logLambdaMapping();
     }
 
     /**
@@ -731,30 +732,29 @@ public class ExtendedSystem implements Potential {
     private void initializeThetaArrays(int index, double lambda) {
         // Set the extended lambda value.
         extendedLambdas[index] = lambda;
-
+    
         // Access the correct state/component layout.
         final SystemState state = phAFED ? esvStates[index] : esvStates[0];
         final int comp = phAFED ? 0 : index;
         double[] thetaPosition = state.x();
         double[] thetaVelocity = state.v();
         double[] thetaAccel = state.a();
-
+    
         // Convert lambda to theta and set position.
         thetaPosition[comp] = Math.asin(Math.sqrt(lambda));
-
-        // Assign a Maxwell-Boltzmann-distributed velocity.
+    
+        // Assign a Maxwell–Boltzmann distributed velocity.
         Random random = new Random();
-        thetaVelocity[comp] = random.nextGaussian() * Math.sqrt(kB * 298.15 / thetaMass);
-
+        
+        thetaVelocity[comp] = random.nextGaussian() * sqrt(kB * thetaTemp / thetaMass);
+    
         // Compute acceleration based on derivative of U with respect to lambda.
         double dUdL = getDerivatives()[index];
         double dUdTheta = dUdL * Math.sin(2 * thetaPosition[comp]);
-        thetaAccel[comp]= -Constants.KCAL_TO_GRAM_ANG2_PER_PS2 * dUdTheta / thetaMass;
-
-        // Optionally log it
-        logger.info(String.format("Index: %d, dU/dL: %6.8f, dU/dTheta: %6.8f, Theta Accel: %6.8f, Theta Velocity: %6.8f",
-             index, dUdL, dUdTheta, thetaAccel[comp], thetaVelocity[comp]));
+        thetaAccel[comp] = -Constants.KCAL_TO_GRAM_ANG2_PER_PS2 * dUdTheta / thetaMass;
+    
     }
+    
 
     /**
      * get array of dU/dL for each titrating residue
@@ -1334,6 +1334,16 @@ public class ExtendedSystem implements Potential {
     public ArrayList<Double> getSpecialResidueList() {
         return specialResidues;
     }
+    /**
+     * Log mapping of each ESV index to residue and type.
+     */
+    public void logLambdaMapping() {
+        for (int i = 0; i < nESVs; i++) {
+            Residue res = extendedResidueList.get(i);
+            String type = (i < nTitr) ? "TITRATION" : "TAUTOMER";
+            logger.info(String.format("ESV[%d] -> Residue %s (%s)", i, res, type));
+        }
+    }
 
     /**
      * Does not allow for changes to the tautomer states of tautomerizing residues
@@ -1641,6 +1651,13 @@ public class ExtendedSystem implements Potential {
             sb.append(format("%6.4f", extendedLambdas[i]));
         }
         return sb.toString();
+    }
+
+    /**
+     * Get the list of residues associated with this ExtendedSystem.
+     */
+    public List<Residue> getResidues() {
+        return extendedResidueList;
     }
 
     /**
@@ -2063,9 +2080,19 @@ public class ExtendedSystem implements Potential {
         double[] dEdL = ExtendedSystem.this.getDerivatives();
         double[] dEdTheta = new double[dEdL.length];
 
-        if (phAFED && logger.isLoggable(Level.FINE)) {
-            logger.fine("pH-AFED: Calculating forces on extended variables");
+
+        // Debug output
+        if (logger.isLoggable(Level.FINE)) {
+            for (int i = 0; i < dEdL.length; i++) {
+                Residue res = extendedResidueList.get(i);
+                String type = (i < nTitr) ? "TITR" : "TAUT";
+                logger.fine(String.format("Force on %s %d (%s): dE/dL = %10.6f", 
+                    type, i, res, dEdL[i]));
+            }
         }
+            if (phAFED && logger.isLoggable(Level.FINE)) {      
+                logger.fine("pH-AFED: Calculating forces on extended variables");
+            }
 
         for (int i = 0; i < dEdL.length; i++) {
             final double theta = phAFED ? esvStates[i].x()[0] : esvStates[0].x()[i];

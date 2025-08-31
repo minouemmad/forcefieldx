@@ -1687,7 +1687,7 @@ private void initializeEnergies() {
 
     // Main MD loop to take molecular dynamics steps.
     for (long step = 1; step <= nSteps; step++) {
-      reportLambdaTemperatures(step);
+      //reportLambdaTemperatures(step);
   
 
       // Update lambda for non-equilibrium simulations.

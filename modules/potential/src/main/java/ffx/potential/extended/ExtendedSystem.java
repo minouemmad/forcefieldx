@@ -407,12 +407,12 @@ public class ExtendedSystem implements Potential {
             thetaMass = properties.getDouble("esv.mass", 500.0); 
             thetaFriction = properties.getDouble("esv.friction", 20.0);
             
-            // Increase discretizer bias magnitude for better sampling in pH-AFED
-            ASHtitrBiasMag = properties.getDouble("ASH.titration.bias.magnitude", 10.0);
-            GLHtitrBiasMag = properties.getDouble("GLH.titration.bias.magnitude", 10.0);
-            HIStitrBiasMag = properties.getDouble("HIS.titration.bias.magnitude", 10.0); 
-            LYStitrBiasMag = properties.getDouble("LYS.titration.bias.magnitude", 10.0);
-            CYStitrBiasMag = properties.getDouble("CYS.titration.bias.magnitude", 10.0);
+            // Keep the same discretizer bias magnitude for now
+            ASHtitrBiasMag = properties.getDouble("ASH.titration.bias.magnitude", DISCR_BIAS);
+            GLHtitrBiasMag = properties.getDouble("GLH.titration.bias.magnitude", DISCR_BIAS);
+            HIStitrBiasMag = properties.getDouble("HIS.titration.bias.magnitude", DISCR_BIAS); 
+            LYStitrBiasMag = properties.getDouble("LYS.titration.bias.magnitude", DISCR_BIAS);
+            CYStitrBiasMag = properties.getDouble("CYS.titration.bias.magnitude", DISCR_BIAS);
 
             // Add logging for pH-AFED parameters
             logger.info("\n pH-AFED parameters:");

@@ -413,19 +413,6 @@ public class ExtendedSystem implements Potential {
             HIStitrBiasMag = properties.getDouble("HIS.titration.bias.magnitude", DISCR_BIAS); 
             LYStitrBiasMag = properties.getDouble("LYS.titration.bias.magnitude", DISCR_BIAS);
             CYStitrBiasMag = properties.getDouble("CYS.titration.bias.magnitude", DISCR_BIAS);
-
-            // Add logging for pH-AFED parameters
-            logger.info("\n pH-AFED parameters:");
-            logger.info(" pH-AFED enabled: " + phAFED);
-            logger.info(" Theta temperature: " + thetaTemp + " K");
-            logger.info(" Theta mass: " + thetaMass + " amu");
-            logger.info(" Theta friction: " + thetaFriction + " ps^-1");
-            logger.info(" Increased bias magnitudes for better sampling:");
-            logger.info("  ASH titration bias: " + ASHtitrBiasMag + " kcal/mol");
-            logger.info("  GLH titration bias: " + GLHtitrBiasMag + " kcal/mol");
-            logger.info("  HIS titration bias: " + HIStitrBiasMag + " kcal/mol");
-            logger.info("  LYS titration bias: " + LYStitrBiasMag + " kcal/mol");
-            logger.info("  CYS titration bias: " + CYStitrBiasMag + " kcal/mol");
         }
 
         // Log all of the titration bias magnitudes for each titratable residue.

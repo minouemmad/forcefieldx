@@ -1658,12 +1658,28 @@ private void initializeEnergies() {
    */
   private long logThermodynamics(long time) {
     time = System.nanoTime() - time;
+
+    double atomicKE = thermostat.getKineticEnergy();
+    double esvKE = 0.0;
+    if (esvSystem != null) {
+        if (esvSystem.isPhAFED()) {
+            for (Adiabatic t : esvThermostats) {
+                esvKE += t.getKineticEnergy();
+            }
+        } else if (esvThermostat != null) {
+            esvKE = esvThermostat.getKineticEnergy();
+        }
+    }
+
     logger.log(basicLogging,
-        format(" %7.3e %12.4f %12.4f %12.4f %8.2f %8.3f", totalSimTime, state.getKineticEnergy(),
-            state.getPotentialEnergy(), state.getTotalEnergy(), state.getTemperature(),
-            time * NS2SEC));
+        format(" %7.3e %12.4f %12.4f %12.4f %12.4f %8.2f %8.3f",
+               totalSimTime, atomicKE, esvKE,
+               state.getPotentialEnergy(),
+               atomicKE + esvKE + state.getPotentialEnergy(),
+               state.getTemperature(), time * NS2SEC));
+
     return System.nanoTime();
-  }
+}
 
   /**
    * Main loop of the run method.

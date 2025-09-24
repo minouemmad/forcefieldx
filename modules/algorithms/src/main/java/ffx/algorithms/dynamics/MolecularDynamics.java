@@ -623,9 +623,11 @@ public class MolecularDynamics implements Runnable, Terminatable {
             if (properties.containsKey("randomseed")) {
                 integrator.setRandomSeed(properties.getInt("randomseed", 0));
             }
+            integrator.setTemperature(thetaTemp)
             this.esvIntegrators.add(integrator);
             this.esvThermostats[i] = new Adiabatic(esvStates[i], potential.getVariableTypes());
             this.esvThermostats[i].setRemoveCenterOfMassMotion(false); 
+            
             
             logger.info(String.format(
               "pH-AFED ESV[%d]: Residue=%s Mass=%.4f Friction=%.4f",

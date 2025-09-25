@@ -610,6 +610,9 @@ public class MolecularDynamics implements Runnable, Terminatable {
 
         double[] frictions = esvSystem.getThetaFrictionArray();
         double thetaMass = esvSystem.getThetaMass();
+        double thetaTemp = esvSystem.getThetaTemp();
+        logger.info(format("pH-AFED: Setting theta temperature to %.2f K", thetaTemp));
+
         lambdaTemperatureStats = new RunningStatistics[esvStates.length];
 
         for (int i = 0; i < esvStates.length; i++) {
@@ -623,7 +626,7 @@ public class MolecularDynamics implements Runnable, Terminatable {
             if (properties.containsKey("randomseed")) {
                 integrator.setRandomSeed(properties.getInt("randomseed", 0));
             }
-            integrator.setTemperature(thetaTemp)
+            integrator.setTemperature(thetaTemp);
             this.esvIntegrators.add(integrator);
             this.esvThermostats[i] = new Adiabatic(esvStates[i], potential.getVariableTypes());
             this.esvThermostats[i].setRemoveCenterOfMassMotion(false); 

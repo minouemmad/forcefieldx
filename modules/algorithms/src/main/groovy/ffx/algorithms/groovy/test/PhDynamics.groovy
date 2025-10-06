@@ -40,6 +40,9 @@ package ffx.algorithms.groovy.test
 import edu.rit.pj.Comm
 import ffx.algorithms.cli.AlgorithmsScript
 import ffx.algorithms.cli.DynamicsOptions
+import ffx.algorithms.cli.BarostatOptions
+import ffx.algorithms.dynamics.Barostat
+import ffx.crystal.CrystalPotential
 import ffx.algorithms.cli.RepExOptions
 import ffx.algorithms.dynamics.MolecularDynamics
 import ffx.algorithms.dynamics.MDEngine
@@ -74,6 +77,9 @@ class PhDynamics extends AlgorithmsScript {
 
   @Mixin
   DynamicsOptions dynamicsOptions
+
+  @Mixin
+  BarostatOptions barostatOptions
 
   @Mixin
   WriteoutOptions writeOutOptions
@@ -248,6 +254,11 @@ class PhDynamics extends AlgorithmsScript {
       logger.info("Reading ESV lambdas from XPH file")
       potential.getCoordinates(x)
       potential.energy(x, true)
+    }
+    if (barostatOptions.pressure > 0) {
+      CrystalPotential crystalPotential = (CrystalPotential) potential
+      Barostat barostat = barostatOptions.createBarostat(activeAssembly, crystalPotential)
+      potential = barostat
     }
 
     logger.info("\n Running molecular dynamics on " + filename)

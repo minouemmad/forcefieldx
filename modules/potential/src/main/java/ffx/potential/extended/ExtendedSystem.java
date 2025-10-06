@@ -836,11 +836,11 @@ public class ExtendedSystem implements Potential {
                 // pH Bias & Derivs
                 double pKa1 = TitrationUtils.Titration.ASHtoASP.pKa;
                 double pKa2 = pKa1;
-                pHBias = LOG10 * Constants.R * currentTemperature * (1.0 - titrationLambda)
+                pHBias = LOG10 * Constants.R * Constants.ROOM_TEMPERATURE * (1.0 - titrationLambda)
                         * (tautomerLambda * (pKa1 - constantSystemPh) + (1.0 - tautomerLambda) * (pKa2 - constantSystemPh));
-                dPh_dTitr = LOG10 * Constants.R * currentTemperature * -1.0
+                dPh_dTitr = LOG10 * Constants.R * Constants.ROOM_TEMPERATURE * -1.0
                         * (tautomerLambda * (pKa1 - constantSystemPh) + (1.0 - tautomerLambda) * (pKa2 - constantSystemPh));
-                dPh_dTaut = LOG10 * Constants.R * currentTemperature * (1.0 - titrationLambda)
+                dPh_dTaut = LOG10 * Constants.R * Constants.ROOM_TEMPERATURE * (1.0 - titrationLambda)
                         * ((pKa1 - constantSystemPh) - (pKa2 - constantSystemPh));
 
                 // pH restraint to add to pH Bias
@@ -893,11 +893,11 @@ public class ExtendedSystem implements Potential {
                 // pH Bias & Derivs
                 pKa1 = TitrationUtils.Titration.GLHtoGLU.pKa;
                 pKa2 = pKa1;
-                pHBias = LOG10 * Constants.R * currentTemperature * (1.0 - titrationLambda)
+                pHBias = LOG10 * Constants.R * Constants.ROOM_TEMPERATURE * (1.0 - titrationLambda)
                         * (tautomerLambda * (pKa1 - constantSystemPh) + (1.0 - tautomerLambda) * (pKa2 - constantSystemPh));
-                dPh_dTitr = LOG10 * Constants.R * currentTemperature * -1.0
+                dPh_dTitr = LOG10 * Constants.R * Constants.ROOM_TEMPERATURE * -1.0
                         * (tautomerLambda * (pKa1 - constantSystemPh) + (1.0 - tautomerLambda) * (pKa2 - constantSystemPh));
-                dPh_dTaut = LOG10 * Constants.R * currentTemperature * (1.0 - titrationLambda)
+                dPh_dTaut = LOG10 * Constants.R * Constants.ROOM_TEMPERATURE * (1.0 - titrationLambda)
                         * ((pKa1 - constantSystemPh) - (pKa2 - constantSystemPh));
 
                 // pH restraint to add to pH Bias
@@ -953,11 +953,11 @@ public class ExtendedSystem implements Potential {
                 pKa1 = TitrationUtils.Titration.HIStoHIE.pKa;
                 // At tautomerLambda=0 HID is fully on.
                 pKa2 = TitrationUtils.Titration.HIStoHID.pKa;
-                pHBias = LOG10 * Constants.R * currentTemperature * (1.0 - titrationLambda)
+                pHBias = LOG10 * Constants.R * Constants.ROOM_TEMPERATURE * (1.0 - titrationLambda)
                         * (tautomerLambda * (pKa1 - constantSystemPh) + (1.0 - tautomerLambda) * (pKa2 - constantSystemPh));
-                dPh_dTitr = LOG10 * Constants.R * currentTemperature * -1.0
+                dPh_dTitr = LOG10 * Constants.R * Constants.ROOM_TEMPERATURE * -1.0
                         * (tautomerLambda * (pKa1 - constantSystemPh) + (1.0 - tautomerLambda) * (pKa2 - constantSystemPh));
-                dPh_dTaut = LOG10 * Constants.R * currentTemperature * (1.0 - titrationLambda)
+                dPh_dTaut = LOG10 * Constants.R * Constants.ROOM_TEMPERATURE * (1.0 - titrationLambda)
                         * ((pKa1 - constantSystemPh) - (pKa2 - constantSystemPh));
 
                 // pH restraint to add to pH Bias
@@ -1012,8 +1012,8 @@ public class ExtendedSystem implements Potential {
 
                 // pH Bias & Derivs
                 pKa1 = TitrationUtils.Titration.LYStoLYD.pKa;
-                pHBias = LOG10 * Constants.R * currentTemperature * (1.0 - titrationLambda) * (pKa1 - constantSystemPh);
-                dPh_dTitr = LOG10 * Constants.R * currentTemperature * -1.0 * (pKa1 - constantSystemPh);
+                pHBias = LOG10 * Constants.R * Constants.ROOM_TEMPERATURE * (1.0 - titrationLambda) * (pKa1 - constantSystemPh);
+                dPh_dTitr = LOG10 * Constants.R * Constants.ROOM_TEMPERATURE * -1.0 * (pKa1 - constantSystemPh);
                 dPh_dTaut = 0.0;
 
                 // pH restraint to add to pH Bias
@@ -1040,8 +1040,8 @@ public class ExtendedSystem implements Potential {
 
                 // pH Bias & Derivs
                 pKa1 = TitrationUtils.Titration.CYStoCYD.pKa;
-                pHBias = LOG10 * Constants.R * currentTemperature * (1.0 - titrationLambda) * (pKa1 - constantSystemPh);
-                dPh_dTitr = LOG10 * Constants.R * currentTemperature * -1.0 * (pKa1 - constantSystemPh);
+                pHBias = LOG10 * Constants.R * Constants.ROOM_TEMPERATURE * (1.0 - titrationLambda) * (pKa1 - constantSystemPh);
+                dPh_dTitr = LOG10 * Constants.R * Constants.ROOM_TEMPERATURE * -1.0 * (pKa1 - constantSystemPh);
                 dPh_dTaut = 0.0;
 
                 // pH restraint to add to pH Bias

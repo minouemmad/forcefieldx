@@ -45,9 +45,11 @@ import ffx.potential.ForceFieldEnergy
 import ffx.potential.bonded.Residue
 import ffx.potential.extended.ExtendedSystem
 import ffx.potential.parsers.XPHFilter
+import org.codehaus.groovy.runtime.ArrayUtil
 import picocli.CommandLine.Command
 import picocli.CommandLine.Option
 import picocli.CommandLine.Parameters
+import org.apache.commons.lang3.ArrayUtils
 
 import static java.lang.String.format
 import static ffx.numerics.estimator.EstimateBootstrapper.getBootstrapIndices
@@ -73,6 +75,14 @@ class RaoBlackwellEstimator extends AlgorithmsScript {
   @Option(names = ["--specifiedResidues", "--sR"], paramLabel = "<selection>", defaultValue = "",
           description = "Specified residues to do analysis.")
   private String specified = ""
+
+  @Option(names = ["--discreteStateResidues", "--dsR"], paramLabel = "<selection>", defaultValue = "",
+          description = "Specified residues are set to discrete state when doing analysis.")
+  private String discreteStateResidues = ""
+
+  @Option(names = ["--discreteState", "--dS"], paramLabel = "<selection>", defaultValue = "0.0",
+          description = "Specified residues are set to discrete state when doing analysis.")
+  private double discreteState = 0.0
 
   @Option(names = ['--startSnap'], paramLabel = "-1",
           description = 'Start energy evaluations at a snap other than 2.')
@@ -113,14 +123,6 @@ class RaoBlackwellEstimator extends AlgorithmsScript {
    */
   RaoBlackwellEstimator(Binding binding) {
     super(binding)
-  }
-
-  /**
-   * RaoBlackwellEstimator constructor that sets the command line arguments.
-   * @param args Command line arguments.
-   */
-  RaoBlackwellEstimator(String[] args) {
-    super(args)
   }
 
   RaoBlackwellEstimator run() {
@@ -223,6 +225,25 @@ class RaoBlackwellEstimator extends AlgorithmsScript {
         specifiedResidues[i] = Integer.parseInt(specifiedResiduesString[i].trim())
       }
     }
+
+    int[] dsResidueNums = null
+    Residue[] dsResidues = null
+    if(discreteStateResidues != ""){
+      String[] discreteStateResiduesString = discreteStateResidues.split(",")
+      dsResidueNums = new int[discreteStateResiduesString.length]
+      dsResidues = new Residue[dsResidueNums.length]
+      for (int i = 0; i < discreteStateResiduesString.length; i++) {
+        dsResidueNums[i] = Integer.parseInt(discreteStateResiduesString[i].trim())
+      }
+      int index=0
+      for (Residue residue : esvSystem.getTitratingResidueList()) {
+        if (ArrayUtils.contains(dsResidueNums, residue.getResidueNumber())) {
+          dsResidues[index] = residue
+          index++
+        }
+      }
+    }
+
     ArrayList<Residue> onlyResidues = new ArrayList<>()
     ArrayList<Integer> onlyResidueIndices = new ArrayList<>()
     if(specifiedResidues != null){
@@ -309,6 +330,9 @@ class RaoBlackwellEstimator extends AlgorithmsScript {
         for(int i = 0; i < startSnap - 2; i++){
           xphFilter.readNext()
         }
+      }
+      for(Residue dsResidue: dsResidues){
+        esvSystem.setTitrationLambda(dsResidue, discreteState, false)
       }
 
       // Get coordinates/energies with each new snap and calculate energy differences

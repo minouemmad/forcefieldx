@@ -112,8 +112,6 @@
           <artifactId>maven-javadoc-plugin</artifactId>
           <configuration>
             <author>true</author>
-            <defaultAuthor>Michael J. Schnieders</defaultAuthor>
-            <defaultSince>1.0</defaultSince>
             <failOnError>false</failOnError>
             <additionalOptions>
               <additionalOption>--add-modules jdk.incubator.vector</additionalOption>
@@ -1004,8 +1002,8 @@
               <execution>
                 <configuration>
                   <packages>
-                    <package>torch==2.7.0</package>
-                    <!-- package>numpy==1.26.4</package -->
+                    <!-- package>torch==2.7.0</package -->
+                    <package>numpy==2.2.4</package>
                   </packages>
                   <externalDirectory>
                     ${project.basedir}/python-resources
@@ -1034,24 +1032,24 @@
     <changes.version>2.12.1</changes.version>
     <checkstyle.skip>true</checkstyle.skip>
     <checkstyle.version>3.6.0</checkstyle.version>
-    <ciftools-java.version>7.0.1</ciftools-java.version>
+    <ciftools-java.version>7.0.2</ciftools-java.version>
     <clean.version>3.5.0</clean.version>
     <clover.version>4.4.1</clover.version>
     <commons-beanutils.version>1.11.0</commons-beanutils.version>
     <commons-collections4.version>4.4</commons-collections4.version>
     <commons-configuration2.version>2.12.0</commons-configuration2.version>
     <commons-io.version>2.20.0</commons-io.version>
-    <commons-lang3.version>3.18.0</commons-lang3.version>
+    <commons-lang3.version>3.19.0</commons-lang3.version>
     <commons-math3.version>3.6.1</commons-math3.version>
     <commons-text.version>1.14.0</commons-text.version>
     <!-- Control the source version -->
     <compileVersion>21</compileVersion>
-    <compiler.version>3.14.0</compiler.version>
-    <dependency.version>3.8.1</dependency.version>
+    <compiler.version>3.14.1</compiler.version>
+    <dependency.version>3.9.0</dependency.version>
     <dependencyDetails>false</dependencyDetails>
     <deploy.version>3.1.4</deploy.version>
-    <enforcer.version>3.6.1</enforcer.version>
-    <exec.version>3.5.1</exec.version>
+    <enforcer.version>3.6.2</enforcer.version>
+    <exec.version>3.6.1</exec.version>
     <failIfNoTests>false</failIfNoTests>
     <fastutil.version>8.5.12</fastutil.version>
     <!-- Version of FFX  -->
@@ -1059,33 +1057,33 @@
     <git-commit-id.version>9.0.2</git-commit-id.version>
     <gmavenplus.version>4.2.1</gmavenplus.version>
     <graal.version>25.0.0</graal.version>
-    <groovy-all.version>5.0.1</groovy-all.version>
+    <groovy-all.version>5.0.2</groovy-all.version>
     <guava.version>33.5.0-jre</guava.version>
     <install.version>3.1.4</install.version>
-    <jacoco.version>0.8.13</jacoco.version>
+    <jacoco.version>0.8.14</jacoco.version>
     <jacoco.skip>true</jacoco.skip>
     <jar.version>3.4.2</jar.version>
     <jarsigner.version>3.1.0</jarsigner.version>
-    <javaparser.version>3.27.0</javaparser.version>
+    <javaparser.version>3.27.1</javaparser.version>
     <java3d.version>1.7.2</java3d.version>
-    <javadoc.version>3.11.3</javadoc.version>
+    <javadoc.version>3.12.0</javadoc.version>
     <jakarta-xml.version>4.0.4</jakarta-xml.version>
     <jdepend.version>2.1</jdepend.version>
-    <jna.version>5.17.0</jna.version>
+    <jna.version>5.18.1</jna.version>
     <jogamp-fat.version>2.6.0</jogamp-fat.version>
     <jopenmm.version>8.3.4</jopenmm.version>
     <junit.version>4.13.2</junit.version>
     <jxr.version>3.6.0</jxr.version>
     <linkcheck.skip>true</linkcheck.skip>
     <linkcheck.version>1.2</linkcheck.version>
-    <log4j.version>2.25.1</log4j.version>
+    <log4j.version>2.25.2</log4j.version>
     <maven.build.timestamp.format>MM-dd-yyyy</maven.build.timestamp.format>
     <maven.javadoc.skip>false</maven.javadoc.skip>
     <maven.jxr.skip>false</maven.jxr.skip>
     <MRJToolkitStubs.version>1.0</MRJToolkitStubs.version>
     <picocli.version>4.7.7</picocli.version>
     <pj.version>1.0.1</pj.version>
-    <pmd.version>3.27.0</pmd.version>
+    <pmd.version>3.28.0</pmd.version>
     <project-info-reports.version>3.9.0</project-info-reports.version>
     <!-- Setting the source encoding is required for builds that are platform independent. -->
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -1094,14 +1092,14 @@
     <release.repo>file:release</release.repo>
     <release.version>3.1.1</release.version>
     <resources.version>3.3.1</resources.version>
-    <scm.version>2.1.0</scm.version>
+    <scm.version>2.2.1</scm.version>
     <site.version>3.21.0</site.version>
     <skipSurefireReport>false</skipSurefireReport>
     <skipTests>true</skipTests>
     <!-- Default locations for deploying snapshots (can be over-ridden by settings.xml) -->
     <snapshot.repo>file:lib</snapshot.repo>
     <source.version>3.3.1</source.version>
-    <spotbugs.version>4.9.6</spotbugs.version>
+    <spotbugs.version>4.9.7</spotbugs.version>
     <surefire.version>3.5.4</surefire.version>
     <!-- Control the target JRE version -->
     <targetVersion>21</targetVersion>
@@ -1109,7 +1107,7 @@
     <tornado.version>1.1.0</tornado.version>
     <!-- This is the javax.vecmath version used by CDK -->
     <vecmath.version>1.5.2</vecmath.version>
-    <versions.version>2.19.0</versions.version>
+    <versions.version>2.19.1</versions.version>
     <!-- Default locations for deploying the website (can be over-ridden by settings.xml) -->
     <website.repo>file:website</website.repo>
     <wrapper.version>3.3.4</wrapper.version>

@@ -41,49 +41,49 @@ import ffx.crystal.Crystal;
 import ffx.numerics.Potential;
 import ffx.potential.MolecularAssembly;
 import ffx.potential.bonded.Atom;
-import ffx.potential.cli.PotentialScript;
-import groovy.lang.Binding;
+import ffx.potential.cli.PotentialCommand;
+import ffx.utilities.FFXBinding;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
-
-import static org.apache.commons.io.FilenameUtils.getExtension;
-import static org.apache.commons.io.FilenameUtils.getName;
-import static org.apache.commons.io.FilenameUtils.removeExtension;
 
 /**
  * Convert from Cartesian to fractional coordinates.
- *
+ * <p>
  * Usage:
- *   ffxc Cart2Frac &lt;filename&gt;
+ * ffxc Cart2Frac &lt;filename&gt;
  */
 @Command(name = "Cart2Frac", description = " Convert from Cartesian to fractional coordinates.")
-public class Cart2Frac extends PotentialScript {
+public class Cart2Frac extends PotentialCommand {
 
-  /** The final argument should be a file in PDB or XYZ format. */
+  /**
+   * The final argument should be a file in PDB or XYZ format.
+   */
   @Parameters(arity = "1", paramLabel = "file",
       description = "The atomic coordinate file in PDB or XYZ format.")
   private String filename = null;
 
-  /** Save a reference to the MolecularAssembly instances to destroy their potentials. */
+  /**
+   * Save a reference to the MolecularAssembly instances to destroy their potentials.
+   */
   private MolecularAssembly[] molecularAssemblies;
 
-  /** Cartesian coordinate input. */
+  /**
+   * Cartesian coordinate input.
+   */
   private double[][][] cartCoordinates = null;
 
-  /** Fractional coordinate output. */
+  /**
+   * Fractional coordinate output.
+   */
   private double[][][] fracCoordinates = null;
 
   public Cart2Frac() {
     super();
   }
 
-  public Cart2Frac(Binding binding) {
+  public Cart2Frac(FFXBinding binding) {
     super(binding);
   }
 
@@ -91,12 +91,16 @@ public class Cart2Frac extends PotentialScript {
     super(args);
   }
 
-  /** Return Cartesian Coordinate input. */
+  /**
+   * Return Cartesian Coordinate input.
+   */
   public double[][][] getCart() {
     return cartCoordinates;
   }
 
-  /** Return Fractional Coordinate output. */
+  /**
+   * Return Fractional Coordinate output.
+   */
   public double[][][] getFrac() {
     return fracCoordinates;
   }
@@ -156,37 +160,17 @@ public class Cart2Frac extends PotentialScript {
       }
     }
 
-    // Get the base name of the file and its extension.
-    String name = getName(filename);
-    String ext = getExtension(name);
-    name = removeExtension(name);
-
-    // Use the current base directory, or update if necessary based on the given filename.
-    String dirString = getBaseDirString(filename);
-
-    if (ext.toUpperCase().contains("XYZ")) {
-      potentialFunctions.saveAsXYZ(molecularAssemblies[0], new File(dirString + name + ".xyz"));
-    } else {
-      potentialFunctions.saveAsPDB(molecularAssemblies, new File(dirString + name + ".pdb"));
-    }
+    saveByOriginalExtension(molecularAssemblies, filename);
 
     // Export results via Binding for compatibility.
-    getBinding().setVariable("cart", cartCoordinates);
-    getBinding().setVariable("frac", fracCoordinates);
+    binding.setVariable("cart", cartCoordinates);
+    binding.setVariable("frac", fracCoordinates);
 
     return this;
   }
 
   @Override
   public List<Potential> getPotentials() {
-    if (molecularAssemblies == null) {
-      return new ArrayList<>();
-    } else {
-      return Arrays.stream(molecularAssemblies)
-          .filter(a -> a != null)
-          .map(MolecularAssembly::getPotentialEnergy)
-          .filter(e -> e != null)
-          .collect(Collectors.toList());
-    }
+    return getPotentialsFromAssemblies(molecularAssemblies);
   }
 }

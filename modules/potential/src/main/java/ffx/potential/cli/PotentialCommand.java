@@ -37,23 +37,28 @@
 // ******************************************************************************
 package ffx.potential.cli;
 
-import static org.apache.commons.io.FilenameUtils.getFullPath;
-
 import ffx.numerics.Potential;
 import ffx.potential.MolecularAssembly;
 import ffx.potential.utils.PotentialsFunctions;
 import ffx.potential.utils.PotentialsUtils;
+import ffx.utilities.FFXBinding;
 import ffx.utilities.FFXCommand;
-import ffx.utilities.FFXContext;
-
-import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Properties;
-
+import ffx.utilities.FilePathInfo;
 import org.apache.log4j.PropertyConfigurator;
 
 import javax.annotation.Nullable;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
+import java.util.Properties;
+import java.util.stream.Collectors;
+
+import static org.apache.commons.io.FilenameUtils.getExtension;
+import static org.apache.commons.io.FilenameUtils.getFullPath;
+import static org.apache.commons.io.FilenameUtils.getName;
+import static org.apache.commons.io.FilenameUtils.removeExtension;
 
 /**
  * Base class for scripts in the Potentials package, providing some key functions.
@@ -84,16 +89,50 @@ public abstract class PotentialCommand extends FFXCommand {
    * Default constructor.
    */
   public PotentialCommand() {
-    this(new FFXContext());
+    super();
   }
 
   /**
    * Create a Script using the supplied Binding.
    *
-   * @param ffxContext Properties and variables to use.
+   * @param binding Binding with variables to use.
    */
-  public PotentialCommand(FFXContext ffxContext) {
-    super(ffxContext);
+  public PotentialCommand(FFXBinding binding) {
+    super(binding);
+  }
+
+  /**
+   * Create a Script using the supplied command line arguments.
+   *
+   * @param args The command line arguments.
+   */
+  public PotentialCommand(String[] args) {
+    super(args);
+  }
+
+  /**
+   * Set the Active Assembly. This is a work-around for a strange Groovy static compilation bug where
+   * direct assignment of activeAssembly in Groovy scripts that extend PotentialScript fails (a NPE
+   * result).
+   *
+   * @param molecularAssembly The MolecularAssembly that should be active.
+   */
+  public void setActiveAssembly(MolecularAssembly molecularAssembly) {
+    activeAssembly = molecularAssembly;
+  }
+
+  /**
+   * Returns a List of all Potential objects associated with this command. Should be written to
+   * tolerate nulls, as many tests run help() and exit without instantiating their Potentials.
+   *
+   * @return All Potentials. Sometimes empty, never null.
+   */
+  public List<Potential> getPotentials() {
+    List<Potential> potentialList = new ArrayList<>();
+    if (activeAssembly != null && activeAssembly.getPotentialEnergy() != null) {
+      potentialList.add(activeAssembly.getPotentialEnergy());
+    }
+    return potentialList;
   }
 
   /**
@@ -112,28 +151,22 @@ public abstract class PotentialCommand extends FFXCommand {
   }
 
   /**
-   * Set the Active Assembly. This is a work-around for a strange Groovy static compilation bug where
-   * direct assignment of activeAssembly in Groovy scripts that extend PotentialScript fails (a NPE
-   * results).
+   * Returns a List of all Potential objects from the supplied MolecularAssembly array.
+   * Should be written to tolerate nulls, as many tests run help() and exit without
+   * instantiating their Potentials.
    *
-   * @param molecularAssembly The MolecularAssembly that should be active.
-   */
-  public void setActiveAssembly(MolecularAssembly molecularAssembly) {
-    activeAssembly = molecularAssembly;
-  }
-
-  /**
-   * Returns a List of all Potential objects associated with this script. Should be written to
-   * tolerate nulls, as many tests run help() and exit without instantiating their Potentials.
-   *
+   * @param assemblies An array of MolecularAssembly instances.
    * @return All Potentials. Sometimes empty, never null.
    */
-  public List<Potential> getPotentials() {
-    List<Potential> potentialList = new ArrayList<>();
-    if (activeAssembly != null && activeAssembly.getPotentialEnergy() != null) {
-      potentialList.add(activeAssembly.getPotentialEnergy());
+  public List<Potential> getPotentialsFromAssemblies(MolecularAssembly[] assemblies) {
+    if (assemblies == null) {
+      return new ArrayList<>();
     }
-    return potentialList;
+    return Arrays.stream(assemblies)
+        .filter(Objects::nonNull)
+        .map(MolecularAssembly::getPotentialEnergy)
+        .filter(Objects::nonNull)
+        .collect(Collectors.toList());
   }
 
   /**
@@ -147,60 +180,42 @@ public abstract class PotentialCommand extends FFXCommand {
       return false;
     }
 
-    FFXContext ffxContext = getFfxContext();
+    potentialFunctions = (PotentialsFunctions) binding.getVariable("functions");
+
+    if (potentialFunctions == null) {
+      // Potential package is running.
+      potentialFunctions = new PotentialsUtils();
+      binding.setVariable("functions", potentialFunctions);
+      // Turn off log4j.
+      System.setProperty("log4j.threshold", "OFF");
+      System.setProperty("log4j.rootLogger", "OFF");
+      System.setProperty("log4j1.compatibility", "true");
+      Properties properties = new Properties();
+      properties.setProperty("log4j.threshold", "OFF");
+      properties.setProperty("log4j2.level", "OFF");
+      properties.setProperty("org.apache.logging.log4j.level", "OFF");
+      PropertyConfigurator.configure(properties);
+    }
+
     try {
-      if (ffxContext.hasVariable("functions")) {
-        // FFX is running.
-        potentialFunctions = (PotentialsFunctions) ffxContext.getVariable("functions");
-      } else {
-        // Potential package is running.
-        potentialFunctions = new PotentialsUtils();
-        ffxContext.setVariable("functions", potentialFunctions);
-        // Turn off log4j.
-        Properties properties = new Properties();
-        properties.setProperty("log4j.threshold", "OFF");
-        properties.setProperty("log4j2.level", "OFF");
-        properties.setProperty("org.apache.logging.log4j.level", "OFF");
-        PropertyConfigurator.configure(properties);
-      }
-
-      activeAssembly = null;
-      if (ffxContext.hasVariable("active")) {
-        activeAssembly = (MolecularAssembly) ffxContext.getVariable("active");
-      }
-
-      if (ffxContext.hasVariable("baseDir")) {
-        baseDir = (File) ffxContext.getVariable("baseDir");
-      }
+      activeAssembly = (MolecularAssembly) binding.getVariable("active");
     } catch (Exception e) {
-      logger.info(" Exception during command init.");
+      activeAssembly = null;
+    }
+
+    try {
+      // A temporary directory for script artifacts.
+      baseDir = (File) binding.getVariable("baseDir");
+    } catch (Exception e) {
+      // Ignore.
     }
 
     return true;
   }
 
   /**
-   * Check that we can write into the current base directory. If not, update the baseDir based on the
-   * supplied filename, including updating the script Binding instance.
-   *
-   * @param dirFromFilename Set the base directory variable <code>baseDir</code> using this
-   *                        filename if its not set to a writeable directory.
-   * @return Return the base directory as a String (including an appended
-   * <code>File.separator</code>).
-   */
-  public String getBaseDirString(String dirFromFilename) {
-    if (baseDir == null || !baseDir.exists() || !baseDir.isDirectory() || !baseDir.canWrite()) {
-      File file = new File(dirFromFilename);
-      baseDir = new File(getFullPath(file.getAbsolutePath()));
-      FFXContext ffxContext = getFfxContext();
-      ffxContext.setVariable("baseDir", baseDir);
-    }
-    return baseDir.toString() + File.separator;
-  }
-
-  /**
-   * If a filename is supplied, open it and return the MolecularAssembly.
-   * Otherwise, the current activeAssembly is returned (which may be null).
+   * If a filename is supplied, open it and return the MolecularAssembly. Otherwise, the current
+   * activeAssembly is returned (which may be null).
    *
    * @param filename Filename to open.
    * @return The active assembly.
@@ -215,8 +230,22 @@ public abstract class PotentialCommand extends FFXCommand {
   }
 
   /**
-   * If a filename is supplied, open it and return the MolecularAssemblies. Otherwise, the current
-   * activeAssembly is returned (which may be null).
+   * If filenames is supplied, open the first entry and return the MolecularAssembly.
+   * Otherwise, the current activeAssembly is returned (which may be null).
+   *
+   * @param filenames Filenames to open.
+   * @return The active assembly.
+   */
+  public MolecularAssembly getActiveAssembly(@Nullable List<String> filenames) {
+    if (filenames != null && !filenames.isEmpty()) {
+      getActiveAssembly(filenames.getFirst());
+    }
+    return activeAssembly;
+  }
+
+  /**
+   * If a filename is supplied, open it and return the MolecularAssemblies.
+   * Otherwise, the current activeAssembly is returned (which may be null).
    *
    * @param filename Filename to open.
    * @return The active assemblies.
@@ -232,6 +261,101 @@ public abstract class PotentialCommand extends FFXCommand {
       assemblies = new MolecularAssembly[]{activeAssembly};
     }
     return assemblies;
+  }
+
+
+  /**
+   * Check that we can write into the current base directory. If not, update the baseDir based on the
+   * supplied filename, including updating the script Binding instance.
+   *
+   * @param dirFromFilename Set the base directory variable <code>baseDir</code> using
+   *                        this filename if it's not set to a writeable directory.
+   * @return Return the base directory as a String (including an appended
+   * <code>File.separator</code>).
+   */
+  public String getBaseDirString(String dirFromFilename) {
+    if (baseDir == null || !baseDir.exists() || !baseDir.isDirectory() || !baseDir.canWrite()) {
+      File file = new File(dirFromFilename);
+      baseDir = new File(getFullPath(file.getAbsolutePath()));
+      binding.setVariable("baseDir", baseDir);
+    }
+    return baseDir.toString() + File.separator;
+  }
+
+  /**
+   * Parse a filepath into directory, base name, and extension.
+   *
+   * @param filepath The filepath to parse.
+   * @return A FilePathInfo object containing the directory, base name, and extension.
+   */
+  public FilePathInfo parseFilePath(String filepath) {
+    String dirString = getBaseDirString(filepath);
+    String name = getName(filepath);
+    String ext = getExtension(name);
+    String baseName = removeExtension(name);
+    return new FilePathInfo(dirString, baseName, ext);
+  }
+
+  /**
+   * Create an output File with a new extension based on the input filepath.
+   *
+   * @param filepath     The input filepath.
+   * @param newExtension The new extension for the output file.
+   * @return A File object with the new extension.
+   */
+  public File createOutputFile(String filepath, String newExtension) {
+    FilePathInfo info = parseFilePath(filepath);
+    return new File(info.directory() + info.baseName() + "." + newExtension);
+  }
+
+  /**
+   * Save MolecularAssemblies to a file based on the supplied extension.
+   *
+   * @param assemblies The MolecularAssembly array to save.
+   * @param filename   The filename.
+   * @param extension  The extension to determine the file format.
+   */
+  public void saveByExtension(MolecularAssembly[] assemblies, String filename, String extension) {
+    if (extension.toUpperCase().contains("XYZ")) {
+      File outputFile = createOutputFile(filename, "xyz");
+      potentialFunctions.saveAsXYZ(assemblies[0], outputFile);
+    } else {
+      File outputFile = createOutputFile(filename, "pdb");
+      potentialFunctions.saveAsPDB(assemblies, outputFile);
+    }
+  }
+
+  /**
+   * Save MolecularAssembly to a file based on the supplied extension.
+   *
+   * @param molecularAssembly The MolecularAssembly to save.
+   * @param filename          The filename.
+   * @param extension         The extension to determine the file format.
+   */
+  public void saveByExtension(MolecularAssembly molecularAssembly, String filename, String extension) {
+    saveByExtension(new MolecularAssembly[]{molecularAssembly}, filename, extension);
+  }
+
+  /**
+   * Save MolecularAssemblies to file using the extension of an original filename.
+   *
+   * @param assemblies The MolecularAssembly array to save.
+   * @param filename   The original filename to extract the extension from.
+   */
+  public void saveByOriginalExtension(MolecularAssembly[] assemblies, String filename) {
+    String ext = getExtension(filename);
+    saveByExtension(assemblies, filename, ext);
+  }
+
+  /**
+   * Save MolecularAssembly to a file using the extension of an original filename.
+   *
+   * @param molecularAssembly The MolecularAssembly array to save.
+   * @param filename          The original filename to extract the extension from.
+   */
+  public void saveByOriginalExtension(MolecularAssembly molecularAssembly, String filename) {
+    String ext = getExtension(filename);
+    saveByExtension(new MolecularAssembly[]{molecularAssembly}, filename, ext);
   }
 
 }

@@ -39,26 +39,33 @@ package ffx.potential.commands;
 
 import ffx.potential.ForceFieldEnergy;
 import ffx.potential.bonded.Residue;
-import ffx.potential.cli.PotentialScript;
+import ffx.potential.cli.PotentialCommand;
 import ffx.potential.utils.GetProteinFeatures;
-import groovy.lang.Binding;
+import ffx.utilities.FFXBinding;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 /**
  * Create a Feature Map for a given protein structure.
- *
+ * <p>
  * Usage:
  *   ffxc FeatureMap [options] &lt;pdb/xyz&gt; &lt;variants.csv&gt; [ddgFile]
  */
 @Command(name = "FeatureMap", description = " Create a Feature Map for a given protein structure")
-public class FeatureMap extends PotentialScript {
+public class FeatureMap extends PotentialCommand {
 
   @Option(names = {"-d", "--delimiter"}, paramLabel = ",",
       description = "Delimiter of input variant list file")
@@ -104,7 +111,7 @@ public class FeatureMap extends PotentialScript {
   private List<Residue> residues;
 
   public FeatureMap() { super(); }
-  public FeatureMap(Binding binding) { super(binding); }
+  public FeatureMap(FFXBinding binding) { super(binding); }
   public FeatureMap(String[] args) { super(args); }
 
   @Override
@@ -114,18 +121,18 @@ public class FeatureMap extends PotentialScript {
       return null;
     }
 
-    // Enable GK surface area for confidence calculation as in Groovy script.
+    // Enable GK surface area for confidence calculation.
     System.setProperty("gkterm", "true");
     System.setProperty("cavmodel", "cav");
     System.setProperty("surface-tension", "1.0");
 
     // Load the MolecularAssembly.
-    String structureFile = filenames != null && !filenames.isEmpty() ? filenames.get(0) : null;
-    activeAssembly = getActiveAssembly(structureFile);
+    activeAssembly = getActiveAssembly(filenames);
     if (activeAssembly == null) {
       logger.info(helpString());
       return null;
     }
+    String filename = activeAssembly.getFile().getAbsolutePath();
 
     ForceFieldEnergy forceFieldEnergy = activeAssembly.getPotentialEnergy();
     int nVars = forceFieldEnergy.getNumberOfVariables();
@@ -139,7 +146,7 @@ public class FeatureMap extends PotentialScript {
     // Handle multiple isoforms by parsing the PDB basename.
     String fileIsoform = null;
     if (multipleIsoforms) {
-      String baseName = new File(structureFile).getName();
+      String baseName = new File(filename).getName();
       baseName = baseName.replaceFirst("\\.pdb$", "");
       if (baseName.toUpperCase().contains("ENS")) {
         String[] geneSplit = baseName.split("_");
@@ -173,7 +180,7 @@ public class FeatureMap extends PotentialScript {
     List<Double[]> ddGun = new ArrayList<>();
     List<String[]> polarityAndAcidityChange = new ArrayList<>();
     if (ddgFile != null) {
-      try (BufferedReader txtReader = new BufferedReader(new FileReader(new File(ddgFile)))) {
+      try (BufferedReader txtReader = new BufferedReader(new FileReader(ddgFile))) {
         String line;
         while ((line = txtReader.readLine()) != null) {
           if (line.contains(".pdb")) {

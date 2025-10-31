@@ -37,20 +37,6 @@
 // ******************************************************************************
 package ffx.xray;
 
-import static ffx.crystal.SymOp.applyTransSymRot;
-import static ffx.numerics.fft.Complex3D.interleavedIndex;
-import static ffx.numerics.math.ScalarMath.mod;
-import static java.lang.String.format;
-import static java.lang.System.arraycopy;
-import static java.util.Arrays.fill;
-import static org.apache.commons.math3.util.FastMath.abs;
-import static org.apache.commons.math3.util.FastMath.exp;
-import static org.apache.commons.math3.util.FastMath.floor;
-import static org.apache.commons.math3.util.FastMath.max;
-import static org.apache.commons.math3.util.FastMath.min;
-import static org.apache.commons.math3.util.FastMath.pow;
-import static org.apache.commons.math3.util.FastMath.sqrt;
-
 import edu.rit.pj.IntegerForLoop;
 import edu.rit.pj.IntegerSchedule;
 import edu.rit.pj.ParallelRegion;
@@ -72,10 +58,25 @@ import ffx.potential.nonbonded.SliceRegion;
 import ffx.potential.nonbonded.SpatialDensityLoop;
 import ffx.potential.nonbonded.SpatialDensityRegion;
 import ffx.xray.RefinementMinimize.RefinementMode;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import static ffx.crystal.SymOp.applyTransSymRot;
+import static ffx.numerics.fft.Complex3D.interleavedIndex;
+import static ffx.numerics.math.ScalarMath.mod;
+import static java.lang.String.format;
+import static java.lang.System.arraycopy;
+import static java.util.Arrays.fill;
+import static org.apache.commons.math3.util.FastMath.abs;
+import static org.apache.commons.math3.util.FastMath.exp;
+import static org.apache.commons.math3.util.FastMath.floor;
+import static org.apache.commons.math3.util.FastMath.max;
+import static org.apache.commons.math3.util.FastMath.min;
+import static org.apache.commons.math3.util.FastMath.pow;
+import static org.apache.commons.math3.util.FastMath.sqrt;
 
 /**
  * Structure factor calculation (including bulk solvent structure factors)
@@ -436,6 +437,7 @@ public class CrystalReciprocalSpace {
         for (int iSymm = 0; iSymm < bulkNSymm; iSymm++) {
           for (int i = 0; i < nAtoms; i++) {
             atomFormFactors[iSymm][i] = new NeutronFormFactor(atoms[i], bAdd);
+            // logger.info(" SymOp " + iSymm + " " + atomFormFactors[iSymm][i].toString());
           }
         }
       } else {
@@ -802,9 +804,8 @@ public class CrystalReciprocalSpace {
    * @param norm a boolean.
    */
   public void densityNorm(double[] data, double[] meansd, boolean norm) {
-    double mean, sd;
-
-    mean = sd = 0.0;
+    double mean = 0.0;
+    double sd = 0.0;
     int n = 0;
     for (int k = 0; k < fftZ; k++) {
       for (int j = 0; j < fftY; j++) {

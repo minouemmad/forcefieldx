@@ -18,35 +18,6 @@
   <build>
     <plugins>
       <plugin>
-        <groupId>org.codehaus.gmavenplus</groupId>
-        <artifactId>gmavenplus-plugin</artifactId>
-        <configuration>
-          <targetBytecode>21</targetBytecode>
-        </configuration>
-        <executions>
-          <execution>
-            <goals>
-              <goal>addSources</goal>
-              <goal>addTestSources</goal>
-              <goal>generateStubs</goal>
-              <goal>compile</goal>
-              <goal>generateTestStubs</goal>
-              <goal>compileTests</goal>
-              <goal>removeStubs</goal>
-              <goal>removeTestStubs</goal>
-            </goals>
-          </execution>
-        </executions>
-        <dependencies>
-          <dependency>
-            <groupId>org.apache.groovy</groupId>
-            <artifactId>groovy-all</artifactId>
-            <version>${groovy-all.version}</version>
-            <type>pom</type>
-          </dependency>
-        </dependencies>
-      </plugin>
-      <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
         <executions>
@@ -66,41 +37,43 @@
           <arguments>
             <argument>-f</argument>
             <argument>--outdir=${project.parent.basedir}/src/site/asciidoc/commands</argument>
-            <argument>ffx.algorithms.groovy.AnalyzeNEQ</argument>
-            <argument>ffx.algorithms.groovy.Anneal</argument>
-            <argument>ffx.algorithms.groovy.BAR</argument>
-            <argument>ffx.algorithms.groovy.Cluster</argument>
-            <argument>ffx.algorithms.groovy.Dynamics</argument>
-            <argument>ffx.algorithms.groovy.ForEachFile</argument>
-            <argument>ffx.algorithms.groovy.GenZ</argument>
-            <argument>ffx.algorithms.groovy.Histogram</argument>
-            <argument>ffx.algorithms.groovy.ManyBody</argument>
-            <argument>ffx.algorithms.groovy.MBAR</argument>
-            <argument>ffx.algorithms.groovy.Minimize</argument>
-            <argument>ffx.algorithms.groovy.MinimizeCrystals</argument>
-            <argument>ffx.algorithms.groovy.MinimizeOpenMM</argument>
-            <argument>ffx.algorithms.groovy.MutatePDB</argument>
-            <argument>ffx.algorithms.groovy.PhDynamics</argument>
-            <argument>ffx.algorithms.groovy.SaveRotamers</argument>
-            <argument>ffx.algorithms.groovy.Scheduler</argument>
-            <argument>ffx.algorithms.groovy.SortArc</argument>
-            <argument>ffx.algorithms.groovy.Superpose</argument>
-            <argument>ffx.algorithms.groovy.SuperposeCrystals</argument>
-            <argument>ffx.algorithms.groovy.Thermodynamics</argument>
-            <argument>ffx.algorithms.groovy.TorsionScan</argument>
-            <argument>ffx.algorithms.groovy.test.ApplyTorsions</argument>
-            <argument>ffx.algorithms.groovy.test.CoformerBindingSearch</argument>
-            <argument>ffx.algorithms.groovy.test.CreateRotamers</argument>
-            <argument>ffx.algorithms.groovy.test.CrystalSearch</argument>
-            <argument>ffx.algorithms.groovy.test.IdentifyRotamers</argument>
-            <argument>ffx.algorithms.groovy.test.ManyBodyPhScan</argument>
-            <argument>ffx.algorithms.groovy.test.MinimizePh</argument>
-            <argument>ffx.algorithms.groovy.test.MostBar</argument>
-            <argument>ffx.algorithms.groovy.test.OSTGradient</argument>
-            <argument>ffx.algorithms.groovy.test.RaoBlackwellEstimator</argument>
-            <argument>ffx.algorithms.groovy.test.RepexThermo</argument>
-            <argument>ffx.algorithms.groovy.test.SortXPH</argument>
-            <argument>ffx.algorithms.groovy.test.WeightedEnsemble</argument>
+            <argument>ffx.algorithms.commands.AnalyzeNEQ</argument>
+            <argument>ffx.algorithms.commands.Anneal</argument>
+            <argument>ffx.algorithms.commands.BAR</argument>
+            <argument>ffx.algorithms.commands.Cluster</argument>
+            <argument>ffx.algorithms.commands.Dynamics</argument>
+            <argument>ffx.algorithms.commands.ForEachFile</argument>
+            <argument>ffx.algorithms.commands.GenZ</argument>
+            <argument>ffx.algorithms.commands.Histogram</argument>
+            <argument>ffx.algorithms.commands.ManyBody</argument>
+            <argument>ffx.algorithms.commands.MBAR</argument>
+            <argument>ffx.algorithms.commands.Minimize</argument>
+            <argument>ffx.algorithms.commands.MinimizeCrystals</argument>
+            <argument>ffx.algorithms.commands.MinimizeOpenMM</argument>
+            <argument>ffx.algorithms.commands.MutatePDB</argument>
+            <argument>ffx.algorithms.commands.PhDynamics</argument>
+            <argument>ffx.algorithms.commands.PhMinimize</argument>
+            <argument>ffx.algorithms.commands.SaveRotamers</argument>
+            <argument>ffx.algorithms.commands.Scheduler</argument>
+            <argument>ffx.algorithms.commands.SortArc</argument>
+            <argument>ffx.algorithms.commands.Superpose</argument>
+            <argument>ffx.algorithms.commands.SuperposeCrystals</argument>
+            <argument>ffx.algorithms.commands.Thermodynamics</argument>
+            <argument>ffx.algorithms.commands.TorsionScan</argument>
+            <argument>ffx.algorithms.commands.test.ApplyTorsions</argument>
+            <argument>ffx.algorithms.commands.test.CoformerBindingSearch</argument>
+            <argument>ffx.algorithms.commands.test.CreateRotamers</argument>
+            <argument>ffx.algorithms.commands.test.CrystalSearch</argument>
+            <argument>ffx.algorithms.commands.test.FindRestraints</argument>
+            <argument>ffx.algorithms.commands.test.Freefix</argument>
+            <argument>ffx.algorithms.commands.test.IdentifyRotamers</argument>
+            <argument>ffx.algorithms.commands.test.ManyBodyPhScan</argument>
+            <argument>ffx.algorithms.commands.test.MostBar</argument>
+            <argument>ffx.algorithms.commands.test.OSTGradient</argument>
+            <argument>ffx.algorithms.commands.test.RaoBlackwellEstimator</argument>
+            <argument>ffx.algorithms.commands.test.RepexThermo</argument>
+            <argument>ffx.algorithms.commands.test.SortXPH</argument>
+            <argument>ffx.algorithms.commands.test.WeightedEnsemble</argument>
           </arguments>
         </configuration>
         <dependencies>
@@ -113,44 +86,25 @@
         </dependencies>
       </plugin>
       <plugin>
-        <artifactId>maven-resources-plugin</artifactId>
+        <artifactId>maven-compiler-plugin</artifactId>
         <executions>
           <execution>
-            <id>copy-groovy-scripts</id>
-            <phase>compile</phase>
-            <goals>
-              <goal>copy-resources</goal>
-            </goals>
+            <id>default-compile</id>
             <configuration>
-              <outputDirectory>${basedir}/../../groovy</outputDirectory>
-              <resources>
-                <resource>
-                  <directory>${basedir}/src/main/groovy/ffx/algorithms/groovy</directory>
-                  <includes>
-                    <include>*</include>
-                  </includes>
-                </resource>
-              </resources>
-              <overwrite>true</overwrite>
-            </configuration>
-          </execution>
-          <execution>
-            <id>copy-groovy-scripts-website</id>
-            <phase>site</phase>
-            <goals>
-              <goal>copy-resources</goal>
-            </goals>
-            <configuration>
-              <outputDirectory>${basedir}/target/site/resources/script</outputDirectory>
-              <resources>
-                <resource>
-                  <directory>${basedir}/src/main/groovy/ffx/algorithms/groovy</directory>
-                  <includes>
-                    <include>*</include>
-                  </includes>
-                </resource>
-              </resources>
-              <overwrite>true</overwrite>
+              <compilerArgs>
+                <arg>-Xlint:all,-serial,-processing,-this-escape</arg>
+                <arg>-ApropertyDir=${project.parent.basedir}/src/site/asciidoc/properties</arg>
+                <arg>-proc:full</arg>
+                <arg>--add-modules</arg>
+                <arg>jdk.incubator.vector</arg>
+              </compilerArgs>
+              <annotationProcessorPaths>
+                <path>
+                  <groupId>${project.groupId}</groupId>
+                  <artifactId>ffx-utilities</artifactId>
+                  <version>${project.version}</version>
+                </path>
+              </annotationProcessorPaths>
             </configuration>
           </execution>
         </executions>
@@ -158,11 +112,6 @@
     </plugins>
   </build>
   <dependencies>
-    <dependency>
-      <groupId>org.apache.groovy</groupId>
-      <artifactId>groovy</artifactId>
-      <version>${groovy-all.version}</version>
-    </dependency>
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>

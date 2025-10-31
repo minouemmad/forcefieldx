@@ -37,6 +37,18 @@
 // ******************************************************************************
 package ffx.potential.bonded;
 
+import ffx.potential.MolecularAssembly;
+import ffx.potential.parsers.PDBFilter.PDBFileStandard;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import static ffx.numerics.math.DoubleMath.dihedralAngle;
 import static ffx.numerics.math.ScalarMath.modToRange;
 import static ffx.potential.bonded.AminoAcidUtils.AminoAcid3;
@@ -52,17 +64,6 @@ import static ffx.potential.bonded.NucleicAcidUtils.NucleicAcid3;
 import static java.lang.Integer.parseInt;
 import static java.lang.Math.PI;
 import static java.lang.String.format;
-
-import ffx.potential.MolecularAssembly;
-import ffx.potential.parsers.PDBFilter.PDBFileStandard;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Utilities for importing atoms from PDB files and checking their names.
@@ -568,11 +569,11 @@ public class NamingUtils {
     logger.fine(format(" Probable ACE cap attached to residue %s; duplicate atom names may result.",
         residue));
     aceC.setName("C");
-    findBondedAtoms(aceC, 8).get(0).setName("O");
-    Atom CH3 = findBondedAtoms(aceC, 6).get(0);
+    findBondedAtoms(aceC, 8).getFirst().setName("O");
+    Atom CH3 = findBondedAtoms(aceC, 6).getFirst();
     CH3.setName("CH3");
     List<Atom> ntermHs = findBondedAtoms(CH3, 1);
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < ntermHs.size(); i++) {
       ntermHs.get(i).setName(format("H%d", (i + 1)));
     }
   }
@@ -1283,8 +1284,7 @@ public class NamingUtils {
       }
       break;
       default:
-        throw new IllegalArgumentException(
-            (format(" Amino acid %s (%s) not recognized!", residue, aa3)));
+        logger.info(format(" Amino acid %s (%s) not recognized!", residue, aa3));
     }
   }
 
@@ -1916,6 +1916,7 @@ public class NamingUtils {
     CA,
     CA2,
     CL,
+    I,
     K,
     MG,
     MG2,

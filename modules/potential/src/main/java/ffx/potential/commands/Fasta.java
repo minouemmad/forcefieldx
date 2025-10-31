@@ -37,8 +37,8 @@
 //******************************************************************************
 package ffx.potential.commands;
 
-import ffx.potential.cli.PotentialScript;
-import groovy.lang.Binding;
+import ffx.potential.cli.PotentialCommand;
+import ffx.utilities.FFXBinding;
 import org.biojava.nbio.core.sequence.ProteinSequence;
 import org.biojava.nbio.core.sequence.io.FastaReaderHelper;
 import org.biojava.nbio.core.sequence.io.FastaWriterHelper;
@@ -49,19 +49,19 @@ import picocli.CommandLine.Parameters;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedHashMap;
+import java.util.Map;
 
 import static java.lang.String.format;
 import static org.apache.commons.io.FilenameUtils.getName;
 
 /**
  * Fasta outputs a sub-sequence from a FASTA file.
- *
+ * <p>
  * Usage:
  *   ffxc Fasta [options] &lt;filename.fasta&gt;
  */
 @Command(name = "Fasta", description = " Fasta outputs a sub-sequence from a FASTA file.")
-public class Fasta extends PotentialScript {
+public class Fasta extends PotentialCommand {
 
   /** Define the first Fasta residue to keep (index of the first residue is 1). */
   @Option(names = {"-f", "--firstResidue"}, paramLabel = "1", defaultValue = "1",
@@ -78,13 +78,11 @@ public class Fasta extends PotentialScript {
       description = "A file in FASTA format.")
   private String fastaName = null;
 
-  private ProteinSequence proteinSequence;
-
   public Fasta() {
     super();
   }
 
-  public Fasta(Binding binding) {
+  public Fasta(FFXBinding binding) {
     super(binding);
   }
 
@@ -106,7 +104,7 @@ public class Fasta extends PotentialScript {
     logger.info("\n Opening FASTA " + fastaName);
 
     try {
-      java.util.Map<String, ProteinSequence> fastaData =
+      Map<String, ProteinSequence> fastaData =
           FastaReaderHelper.readFastaProteinSequence(new File(fastaName));
       if (fastaData == null || fastaData.isEmpty()) {
         logger.warning(" No sequences found in FASTA file: " + fastaName);
@@ -124,11 +122,11 @@ public class Fasta extends PotentialScript {
         lastResidue = length;
       }
 
-      proteinSequence = new ProteinSequence(seq.substring(firstResidue - 1, lastResidue));
+      ProteinSequence proteinSequence = new ProteinSequence(seq.substring(firstResidue - 1, lastResidue));
       proteinSequence.setOriginalHeader(sequence.getOriginalHeader());
       length = proteinSequence.getLength();
       logger.info(format("\n New sequence from residue %d to residue %d is of length %d: \n %s",
-          firstResidue, lastResidue, length, proteinSequence.toString()));
+          firstResidue, lastResidue, length, proteinSequence));
 
       Collection<ProteinSequence> proteinSequenceCollection = new ArrayList<>();
       proteinSequenceCollection.add(proteinSequence);

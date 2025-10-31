@@ -38,14 +38,14 @@
 package ffx.potential.commands;
 
 import ffx.potential.bonded.Atom;
-import ffx.potential.cli.PotentialScript;
+import ffx.potential.cli.PotentialCommand;
 import ffx.potential.cli.SaveOptions;
 import ffx.potential.extended.ExtendedSystem;
 import ffx.potential.parsers.PDBFilter;
 import ffx.potential.parsers.SystemFilter;
 import ffx.potential.parsers.XPHFilter;
 import ffx.potential.parsers.XYZFilter;
-import groovy.lang.Binding;
+import ffx.utilities.FFXBinding;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Mixin;
 import picocli.CommandLine.Option;
@@ -67,7 +67,7 @@ import static org.apache.commons.io.FilenameUtils.removeExtension;
  *   ffxc SaveAsPDB [options] &lt;filename&gt;
  */
 @Command(name = "SaveAsPDB", description = " Save the system as a PDB file.")
-public class SaveAsPDB extends PotentialScript {
+public class SaveAsPDB extends PotentialCommand {
 
   @Mixin
   private SaveOptions saveOptions = new SaveOptions();
@@ -108,7 +108,7 @@ public class SaveAsPDB extends PotentialScript {
   private String filename = null;
 
   public SaveAsPDB() { super(); }
-  public SaveAsPDB(Binding binding) { super(binding); }
+  public SaveAsPDB(FFXBinding binding) { super(binding); }
   public SaveAsPDB(String[] args) { super(args); }
 
   @Override
@@ -130,7 +130,7 @@ public class SaveAsPDB extends PotentialScript {
     ExtendedSystem esvSystem = null;
 
     if (openFilter instanceof XYZFilter && extended != null && !extended.isEmpty()) {
-      logger.info("Building extended system from " + extended);
+      logger.info(" Building extended system from " + extended);
       // Build extended system from file with residue info.
       activeAssembly = getActiveAssembly(extended);
       esvSystem = new ExtendedSystem(activeAssembly, 7.4, null);
@@ -139,7 +139,7 @@ public class SaveAsPDB extends PotentialScript {
       openFilter = new XPHFilter(activeAssembly.getFile(), activeAssembly, activeAssembly.getForceField(),
           activeAssembly.getProperties(), esvSystem);
       openFilter.readFile();
-      logger.info("Reading ESV lambdas from XPH file");
+      logger.info(" Reading ESV lambdas from XPH file");
     }
 
     logger.info("\n Saving PDB for " + filename);

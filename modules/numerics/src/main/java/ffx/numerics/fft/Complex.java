@@ -293,7 +293,7 @@ public class Complex {
 
       for (MixedRadixFactor mixedRadixFactor : mixedRadixFactors) {
         mixedRadixFactor.setSIMDWidth(simdWidth);
-        //logger.info(mixedRadixFactor.toString());
+        // logger.info(" " + mixedRadixFactor);
       }
 
       // Minimum SIMD inner loop length.
@@ -827,6 +827,7 @@ public class Complex {
   public static void main(String[] args) throws Exception {
     int dimNotFinal = 128;
     int reps = 5;
+    boolean blocked = false;
     try {
       dimNotFinal = Integer.parseInt(args[0]);
       if (dimNotFinal < 1) {
@@ -836,13 +837,20 @@ public class Complex {
       if (reps < 1) {
         reps = 5;
       }
+      blocked = Boolean.parseBoolean(args[2]);
     } catch (Exception e) {
       //
     }
     final int dim = dimNotFinal;
     System.out.printf("Initializing a 1D array of length %d.\n"
         + "The best timing out of %d repetitions will be used.%n", dim, reps);
-    Complex complex = new Complex(dim);
+    DataLayout1D dataLayout1D = DataLayout1D.INTERLEAVED;
+    int im = 1;
+    if (blocked) {
+      dataLayout1D = DataLayout1D.BLOCKED;
+      im = dim;
+    }
+    Complex complex = new Complex(dim, dataLayout1D, im);
     final double[] data = new double[dim * 2];
     Random random = new Random(1);
     for (int i = 0; i < dim; i++) {

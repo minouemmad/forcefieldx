@@ -1064,7 +1064,7 @@
     <jacoco.skip>true</jacoco.skip>
     <jar.version>3.5.0</jar.version>
     <jarsigner.version>3.1.0</jarsigner.version>
-    <javaparser.version>3.27.1</javaparser.version>
+    <javaparser.version>3.28.0</javaparser.version>
     <java3d.version>1.7.2</java3d.version>
     <javadoc.version>3.12.0</javadoc.version>
     <jakarta-xml.version>4.0.4</jakarta-xml.version>
@@ -1264,40 +1264,7 @@
       <url>https://repo.maven.apache.org/maven2</url>
     </repository>
     <repository>
-      <id>3.jogamp.repo</id>
-      <name>JogAmp Maven Repository</name>
-      <releases>
-        <enabled>true</enabled>
-      </releases>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-      <url>https://jogamp.org/deployment/maven</url>
-    </repository>
-    <repository>
-      <id>4.biojava.legacy.repo</id>
-      <name>BioJava's Git based legacy maven repo</name>
-      <releases>
-        <enabled>true</enabled>
-      </releases>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-      <url>https://github.com/biojava/maven-repo/raw/master/</url>
-    </repository>
-    <repository>
-      <id>5.biojava.repo</id>
-      <name>BioJava Maven Repository</name>
-      <releases>
-        <enabled>true</enabled>
-      </releases>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-      <url>https://www.biojava.org/download/maven/</url>
-    </repository>
-    <repository>
-      <id>6.u.manchester.repo</id>
+      <id>3.u.manchester.repo</id>
       <name>TornadoVM Repository</name>
       <releases>
         <enabled>true</enabled>

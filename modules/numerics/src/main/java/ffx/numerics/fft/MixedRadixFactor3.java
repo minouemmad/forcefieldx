@@ -78,9 +78,6 @@ public class MixedRadixFactor3 extends MixedRadixFactor {
    * @return True if this width is supported.
    */
   public boolean isValidSIMDWidth(int width) {
-    if (width <= 0 || width > LENGTH) {
-      return false;
-    }
     // Must be a supported width.
     if (width != 2 && width != 4 && width != 8) {
       return false;

@@ -329,19 +329,19 @@ public abstract class MixedRadixFactor {
    * @return a string representation of the mixed radix factor.
    */
   public String toString() {
-    return "MixedRadixFactor {" +
-        "\n n =" + n +
-        "\n nFFTs =" + nFFTs +
-        "\n im =" + im +
-        "\n factor =" + factor +
-        "\n product =" + product +
-        "\n outerLoopLimit =" + outerLoopLimit +
-        "\n innerLoopLimit =" + innerLoopLimit +
-        "\n simd length =" + simdWidth +
-        "\n nextInput =" + nextInput +
-        "\n di =" + di +
-        "\n dj =" + dj +
-        "\n ii =" + ii +
+    return " MixedRadixFactor {" +
+        "\n N: " + n +
+        "\n Factor: " + factor +
+        "\n Number of FFTs: " + nFFTs +
+        "\n Next real value: " + ii +
+        "\n Imaginary offset: " + im +
+        "\n Product: " + product +
+        "\n Outer Loop Limit: " + outerLoopLimit +
+        "\n Inner Loop Limit: " + innerLoopLimit +
+        "\n SIMD width: " + simdWidth +
+        "\n Next input: " + nextInput +
+        "\n Step between input values: " + di +
+        "\n Step between output values: " + dj +
         "\n jstep =" + jstep +
         "}\n";
   }
@@ -390,13 +390,15 @@ public abstract class MixedRadixFactor {
    * width will be set by the "getOptimalSIMDWidth" method.
    *
    * @param width The SIMD width to use.
+   * @return the SIMD width selected.
    */
-  public void setSIMDWidth(int width) {
+  public int setSIMDWidth(int width) {
     if (isValidSIMDWidth(width)) {
       simdWidth = width;
     } else {
       simdWidth = getOptimalSIMDWidth();
     }
+    return simdWidth;
   }
 
   /**

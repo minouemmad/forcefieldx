@@ -1,11 +1,11 @@
 ffx/algorithms/optimize/manybody/EnergyExpansion$1.class
-ffx/algorithms/dynamics/MolecularDynamicsOpenMM$1.class
-ffx/algorithms/optimize/RotamerOptimization$1.class
 ffx/algorithms/optimize/CrystalMinimize$1.class
 ffx/algorithms/mc/RosenbluthChiAllMove$1.class
 ffx/algorithms/misc/GenerateRotamers$1.class
+ffx/algorithms/dynamics/MolecularDynamics$1.class
+ffx/algorithms/optimize/TitrationManyBody$1.class
+ffx/algorithms/dynamics/MolecularDynamicsOpenMM$1.class
+ffx/algorithms/optimize/RotamerOptimization$1.class
 ffx/algorithms/mc/RosenbluthOBMC$1.class
 ffx/algorithms/dynamics/Barostat$1.class
-ffx/algorithms/dynamics/MolecularDynamics$1.class
 ffx/algorithms/optimize/BoxOptimization$1.class
-ffx/algorithms/optimize/TitrationManyBody$1.class

@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -51,7 +51,7 @@ public class GradientOptions {
   /**
    * The ArgGroup keeps the GradientOptions together when printing help.
    */
-  @ArgGroup(heading = "%n Gradient Options%n", validate = false)
+  @ArgGroup(heading = "%n Coordinate Gradient Options%n", validate = false)
   private final GradientOptionGroup group = new GradientOptionGroup();
 
   /**

@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -43,7 +43,6 @@ import ffx.algorithms.cli.ManyBodyOptions;
 import ffx.algorithms.optimize.RotamerOptimization;
 import ffx.algorithms.optimize.TitrationManyBody;
 import ffx.numerics.Potential;
-import ffx.potential.ForceFieldEnergy;
 import ffx.potential.MolecularAssembly;
 import ffx.potential.bonded.Atom;
 import ffx.potential.bonded.Residue;
@@ -52,23 +51,20 @@ import ffx.potential.parsers.PDBFilter;
 import ffx.utilities.FFXBinding;
 import ffx.xray.DiffractionData;
 import ffx.xray.RefinementEnergy;
-import ffx.xray.RefinementMinimize.RefinementMode;
 import ffx.xray.cli.XrayOptions;
+import ffx.xray.refine.RefinementMode;
 import org.apache.commons.configuration2.CompositeConfiguration;
-import org.apache.commons.io.FilenameUtils;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Mixin;
 import picocli.CommandLine.Parameters;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 import static java.lang.String.format;
-import static org.apache.commons.io.FilenameUtils.removeExtension;
 
 /**
  * The ManyBody script performs a discrete optimization using a many-body expansion and elimination expressions.
@@ -91,12 +87,10 @@ public class ManyBody extends AlgorithmsCommand {
    */
   @Parameters(arity = "1..*", paramLabel = "files", description = "PDB and Real Space input files.")
   private List<String> filenames;
-
-  private RefinementEnergy refinementEnergy;
-
-  ForceFieldEnergy potentialEnergy;
   private MolecularAssembly[] molecularAssemblies;
-  TitrationManyBody titrationManyBody;
+  private DiffractionData diffractionData;
+  private double initialTargetEnergy;
+  private double finalTargetEnergy;
 
   /**
    * ManyBody constructor.
@@ -107,6 +101,7 @@ public class ManyBody extends AlgorithmsCommand {
 
   /**
    * ManyBody constructor that sets the command line arguments.
+   *
    * @param args Command line arguments.
    */
   public ManyBody(String[] args) {
@@ -115,6 +110,7 @@ public class ManyBody extends AlgorithmsCommand {
 
   /**
    * ManyBody constructor.
+   *
    * @param binding The Binding to use.
    */
   public ManyBody(FFXBinding binding) {
@@ -130,10 +126,14 @@ public class ManyBody extends AlgorithmsCommand {
 
     xrayOptions.init();
 
+    // Atomic clashes are expected and will be handled using direct induced dipoles.
+    System.setProperty("sor-scf-fallback", "false");
+    System.setProperty("direct-scf-fallback", "true");
+
     // This flag is for ForceFieldEnergyOpenMM and must be set before reading files.
     // It enforces that all torsions include a Fourier series with 6 terms.
     // Otherwise, during titration the number of terms for each torsion may change and
-    // causing updateParametersInContext to throw an exception.
+    // cause updateParametersInContext to throw an exception.
     // Note that OpenMM is not usually used for crystals (it doesn't handle space groups).
     double titrationPH = manyBodyOptions.getTitrationPH();
     if (titrationPH > 0) {
@@ -144,22 +144,23 @@ public class ManyBody extends AlgorithmsCommand {
     String nea = System.getProperty("native-environment-approximation", "true");
     System.setProperty("native-environment-approximation", nea);
 
-    String modelFilename;
+    String filename;
     if (filenames != null && !filenames.isEmpty()) {
-      molecularAssemblies = algorithmFunctions.openAll(filenames.get(0));
+      // Each alternate conformer is returned in a separate MolecularAssembly.
+      molecularAssemblies = algorithmFunctions.openAll(filenames.getFirst());
       activeAssembly = molecularAssemblies[0];
-      modelFilename = filenames.get(0);
     } else if (activeAssembly == null) {
       logger.info(helpString());
       return this;
     } else {
       molecularAssemblies = new MolecularAssembly[]{activeAssembly};
-      modelFilename = activeAssembly.getFile().getAbsolutePath();
     }
+
+    // Update the active filename
+    filename = activeAssembly.getFile().getAbsolutePath();
 
     CompositeConfiguration properties = activeAssembly.getProperties();
     activeAssembly.getPotentialEnergy().setPrintOnFailure(false, false);
-    potentialEnergy = activeAssembly.getPotentialEnergy();
 
     // The refinement mode must be coordinates.
     if (xrayOptions.refinementMode != RefinementMode.COORDINATES) {
@@ -175,67 +176,87 @@ public class ManyBody extends AlgorithmsCommand {
     }
 
     // Handle rotamer optimization with titration.
+    TitrationManyBody titrationManyBody = null;
     if (titrationPH > 0) {
-      logger.info(format("\n Adding titration hydrogen to: %s\n", filenames.get(0)));
+      logger.info(format("\n Adding titration hydrogen to: %s\n", filenames.getFirst()));
       List<Integer> resNumberList = new ArrayList<>();
       for (Residue residue : residues) {
         resNumberList.add(residue.getResidueNumber());
       }
 
-      // Create new MolecularAssembly with additional protons and update the ForceFieldEnergy
-      titrationManyBody = new TitrationManyBody(filenames.get(0), activeAssembly.getForceField(),
+      // Create a new MolecularAssembly with additional protons and update the ForceFieldEnergy
+      titrationManyBody = new TitrationManyBody(filenames.getFirst(), activeAssembly.getForceField(),
           resNumberList, titrationPH, manyBodyOptions);
-      MolecularAssembly[] protonatedAssemblies = titrationManyBody.getProtonatedAssemblies();
-      setActiveAssembly(protonatedAssemblies[0]);
-      potentialEnergy = protonatedAssemblies[0].getPotentialEnergy();
-      molecularAssemblies = protonatedAssemblies;
+      molecularAssemblies = titrationManyBody.getProtonatedAssemblies();
+      activeAssembly = molecularAssemblies[0];
     }
 
-    // Load parsed X-ray properties.
+    // Combine script flags (in parseResult) with properties.
     xrayOptions.setProperties(parseResult, properties);
 
-    // Set up the diffraction data, which could be multiple files.
-    DiffractionData diffractionData = xrayOptions.getDiffractionData(filenames, molecularAssemblies, properties);
-    refinementEnergy = xrayOptions.toXrayEnergy(diffractionData);
+    // Set up diffraction data (can be multiple files)
+    diffractionData = xrayOptions.getDiffractionData(filenames, molecularAssemblies, properties);
+    RefinementEnergy refinementEnergy = xrayOptions.toXrayEnergy(diffractionData);
     refinementEnergy.setScaling(null);
 
     boolean isTitrating = false;
     Set<Atom> excludeAtoms = new HashSet<>();
-    for (MolecularAssembly currentMolecularAssembly : molecularAssemblies) {
-      setActiveAssembly(currentMolecularAssembly);
-      currentMolecularAssembly.setFile(new File(filenames.get(0)));
-      if (currentMolecularAssembly.getAtomList().get(0).getAltLoc() == 'A' && molecularAssemblies.length > 1) {
-        for (int i = 0; i < molecularAssemblies[0].getAtomList().size(); i++) {
-          molecularAssemblies[0].getAtomList().get(i).setOccupancy(1.0);
-          molecularAssemblies[1].getAtomList().get(i).setOccupancy(0.0);
-        }
-        logger.info(" Occupancy of 1st Molecular Assembly Atoms: " + molecularAssemblies[0].getAtomList().get(0).getOccupancy());
-        logger.info(" Occupancy of 2nd Molecular Assembly Atoms: " + molecularAssemblies[1].getAtomList().get(0).getOccupancy());
 
-      } else if (currentMolecularAssembly.getAtomList().get(0).getAltLoc() == 'B' && molecularAssemblies.length > 1) {
-        for (int i = 0; i < molecularAssemblies[0].getAtomList().size(); i++) {
-          molecularAssemblies[0].getAtomList().get(i).setOccupancy(0.5);
-          molecularAssemblies[1].getAtomList().get(i).setOccupancy(0.5);
-        }
-        logger.info(" Occupancy of 1st Molecular Assembly Atoms: " + molecularAssemblies[0].getAtomList().get(0).getOccupancy());
-        logger.info(" Occupancy of 2nd Molecular Assembly Atoms: " + molecularAssemblies[1].getAtomList().get(0).getOccupancy());
+    for (int i = 0; i < molecularAssemblies.length; i++) {
+
+      // Only optimization of the root location is currently tested.
+      if (i > 0) {
+        break;
       }
+      activeAssembly = molecularAssemblies[i];
+      activeAssembly.setFile(new File(filenames.getFirst()));
+
+
+      // Save current B-factors
+      Atom[] atoms = activeAssembly.getAtomArray();
+      double[] bfactors = new double[atoms.length];
+      double averageBFactor = 0;
+      for (int j = 0; j < atoms.length; j++) {
+        double bfactor = atoms[j].getTempFactor();
+        bfactors[j] = bfactor;
+        averageBFactor += bfactor;
+      }
+      // Set each atom to use the average b-factor to avoid a bias toward the initial rotamer.
+      averageBFactor /= atoms.length;
+      for (Atom atom : atoms) {
+        atom.setTempFactor(averageBFactor);
+      }
+
+      diffractionData.scaleBulkFit();
+      diffractionData.printStats();
 
       RotamerOptimization rotamerOptimization = new RotamerOptimization(activeAssembly, refinementEnergy, algorithmListener);
       manyBodyOptions.initRotamerOptimization(rotamerOptimization, activeAssembly);
 
       double[] x = new double[refinementEnergy.getNumberOfVariables()];
       x = refinementEnergy.getCoordinates(x);
-      double e = refinementEnergy.energy(x, true);
-      logger.info(format("\n Initial target energy: %16.8f ", e));
+      initialTargetEnergy = refinementEnergy.energy(x, true);
+      logger.info(format("\n Initial target energy: %16.8f ", initialTargetEnergy));
 
       List<Residue> residueList = rotamerOptimization.getResidues();
-      RotamerLibrary.measureRotamers(residueList, false);
 
+      // For molecular assemblies other than the root assembly, only optimize alternate location residues.
+      if (i > 0) {
+        Character altLoc = activeAssembly.getAlternateLocation();
+        List<Residue> altLocResidues = new ArrayList<>();
+        for (Residue r : residues) {
+          if (r.conatainsAltLoc(altLoc)) {
+            altLocResidues.add(r);
+          }
+        }
+        residueList = altLocResidues;
+        rotamerOptimization.setResidues(altLocResidues);
+      }
+
+      RotamerLibrary.measureRotamers(residueList, false);
       rotamerOptimization.optimize(manyBodyOptions.getAlgorithm(residueList.size()));
 
       int[] optimalRotamers = rotamerOptimization.getOptimumRotamers();
-
 
       if (titrationPH > 0) {
         isTitrating = titrationManyBody.excludeExcessAtoms(excludeAtoms, optimalRotamers, residueList);
@@ -243,82 +264,55 @@ public class ManyBody extends AlgorithmsCommand {
       logger.info(" Final Minimum Energy");
       // Get final parameters and compute the target function.
       x = refinementEnergy.getCoordinates(x);
-      e = refinementEnergy.energy(x, true);
+      finalTargetEnergy = refinementEnergy.energy(x, true);
 
       if (isTitrating) {
         double phBias = rotamerOptimization.getEnergyExpansion().getTotalRotamerPhBias(residueList, optimalRotamers, titrationPH, manyBodyOptions.getPHRestraint());
         logger.info(format("\n  Rotamer pH Bias      %16.8f", phBias));
-        logger.info(format("  Xray Target with Bias%16.8f\n", phBias + e));
+        logger.info(format("  Xray Target with Bias%16.8f\n", phBias + finalTargetEnergy));
       } else {
-        logger.info(format("\n  Xray Target          %16.8f\n", e));
+        logger.info(format("\n  Final Target Energy  %16.8f\n", finalTargetEnergy));
+      }
+
+      // Revert to the saved B-factors.
+      for (int j = 0; j < atoms.length; j++) {
+        atoms[j].setTempFactor(bfactors[j]);
       }
       diffractionData.scaleBulkFit();
       diffractionData.printStats();
     }
 
-    if (molecularAssemblies.length > 1) {
-      List<Residue> residueListA = molecularAssemblies[0].getResidueList();
-      List<Residue> residueListB = molecularAssemblies[1].getResidueList();
-      int firstRes = residueListA.get(0).getResidueNumber();
-      for (Residue residue : residueListA) {
-        int resNum = residue.getResidueNumber();
-        List<Atom> atomList = residue.getAtomList();
-        for (int i = 0; i < residue.getAtomList().size(); i++) {
-          Atom atom = atomList.get(i);
-          String resNameA = atom.getResidueName();
-          //logger.info("Residue A: " + resNameA);
-          double coorAX = atom.getX();
-          double coorAY = atom.getY();
-          double coorAZ = atom.getZ();
-          Residue residueB = residueListB.get(resNum - firstRes);
-          List<Atom> atomListB = residueB.getAtomList();
-          Atom atomB = atomListB.get(i);
-          String resNameB = atomB.getResidueName();
-          //logger.info("Residue B: " + resNameB);
-          double coorBX = atomB.getX();
-          double coorBY = atomB.getY();
-          double coorBZ = atomB.getZ();
-          if (coorAX == coorBX && coorAY == coorBY && coorAZ == coorBZ && resNameA.equals(resNameB)) {
-            atom.setAltLoc(' ');
-            atomB.setAltLoc(' ');
-            atom.setOccupancy(1.0);
-          }
-        }
-      }
+    if (Comm.world().rank() == 0) {
+      properties.setProperty("standardizeAtomNames", "false");
+      File modelFile = saveDirFile(activeAssembly.getFile());
+      PDBFilter pdbFilter = new PDBFilter(modelFile, List.of(molecularAssemblies), activeAssembly.getForceField(), properties);
       if (titrationPH > 0) {
-        diffractionData.writeModel(removeExtension(filenames.get(0)) + ".pdb", excludeAtoms, titrationPH);
+        String remark = format("Titration pH: %6.3f", titrationPH);
+        if (!pdbFilter.writeFile(modelFile, false, excludeAtoms, true, true, new String[]{remark})) {
+          logger.info(format(" Save failed for %s", activeAssembly));
+        }
       } else {
-        diffractionData.writeModel(removeExtension(filenames.get(0)) + ".pdb");
-      }
-      diffractionData.writeData(removeExtension(filenames.get(0)) + ".mtz");
-    } else if (Comm.world().rank() == 0) {
-      String ext = FilenameUtils.getExtension(modelFilename);
-      modelFilename = FilenameUtils.removeExtension(modelFilename);
-      if (ext.toUpperCase().contains("XYZ")) {
-        algorithmFunctions.saveAsXYZ(activeAssembly, new File(modelFilename + ".xyz"));
-      } else {
-        properties.setProperty("standardizeAtomNames", "false");
-        File modelFile = saveDirFile(activeAssembly.getFile());
-        PDBFilter pdbFilter = new PDBFilter(modelFile, activeAssembly,
-            activeAssembly.getForceField(), properties);
-        if (titrationPH > 0) {
-          String remark = format("Titration pH: %6.3f", titrationPH);
-          if (!pdbFilter.writeFile(modelFile, false, excludeAtoms, true, true, new String[]{remark})) {
-            logger.info(format(" Save failed for %s", activeAssembly));
-          }
-        } else {
-          if (!pdbFilter.writeFile(modelFile, false, excludeAtoms, true, true)) {
-            logger.info(format(" Save failed for %s", activeAssembly));
-          }
+        if (!pdbFilter.writeFile(modelFile, false, excludeAtoms, true, true)) {
+          logger.info(format(" Save failed for %s", activeAssembly));
         }
       }
     }
+
     return this;
+  }
+
+  public double getInitialTargetEnergy() {
+    return initialTargetEnergy;
+  }
+
+  public double getFinalTargetEnergy() {
+    return finalTargetEnergy;
   }
 
 
   /**
    * Get the ManyBodyOptions.
+   *
    * @return The ManyBodyOptions.
    */
   public ManyBodyOptions getManyBodyOptions() {
@@ -327,7 +321,11 @@ public class ManyBody extends AlgorithmsCommand {
 
   @Override
   public List<Potential> getPotentials() {
-    return refinementEnergy == null ? Collections.emptyList() :
-        Collections.singletonList((Potential) refinementEnergy);
+    return getPotentialsFromAssemblies(molecularAssemblies);
+  }
+
+  @Override
+  public boolean destroyPotentials() {
+    return diffractionData == null ? true : diffractionData.destroy();
   }
 }

@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -57,7 +57,7 @@ import ffx.realspace.cli.RealSpaceOptions;
 import ffx.utilities.FFXBinding;
 import ffx.xray.DiffractionData;
 import ffx.xray.RefinementEnergy;
-import ffx.xray.RefinementMinimize.RefinementMode;
+import ffx.xray.refine.RefinementMode;
 import ffx.xray.cli.XrayOptions;
 import org.apache.commons.configuration2.CompositeConfiguration;
 import org.apache.commons.io.FilenameUtils;

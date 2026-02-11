@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -65,7 +65,7 @@ import javax.lang.model.type.TypeMirror;
  */
 @SupportedAnnotationTypes({"ffx.utilities.FFXProperty", "ffx.utilities.FFXProperties"})
 @SupportedOptions({"propertyDir"})
-@SupportedSourceVersion(SourceVersion.RELEASE_21)
+@SupportedSourceVersion(SourceVersion.RELEASE_25)
 public class PropertyProcessor extends AbstractProcessor {
 
   /**

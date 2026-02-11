@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -35,7 +35,7 @@
 // exception statement from your version.
 //
 // ******************************************************************************
-package ffx.xray;
+package ffx.xray.parallel;
 
 import edu.rit.pj.IntegerSchedule;
 import edu.rit.util.Range;
@@ -44,63 +44,48 @@ import static java.lang.System.arraycopy;
 import static java.util.Arrays.fill;
 
 /**
- * GradientSchedule class.
+ * RowSchedule class.
  *
- * @author Armin Avdic
+ * @author Michael J. Schnieders
  * @since 1.0
  */
-public class GradientSchedule extends IntegerSchedule {
+public class RowSchedule extends IntegerSchedule {
 
   private final int[] lowerBounds;
-  private final int nAtoms;
+  private final int fftZ;
+  private final int fftY;
   private int nThreads;
   private boolean[] threadDone;
   private Range[] ranges;
   private int[] weights;
 
   /**
-   * Constructor for GradientSchedule.
+   * Constructor for RowSchedule.
    *
    * @param nThreads a int.
-   * @param nAtoms a int.
+   * @param fftZ     a int.
+   * @param fftY     a int.
    */
-  protected GradientSchedule(int nThreads, int nAtoms) {
+  public RowSchedule(int nThreads, int fftZ, int fftY) {
     this.nThreads = nThreads;
     threadDone = new boolean[nThreads];
     ranges = new Range[nThreads];
     lowerBounds = new int[nThreads + 1];
-    this.nAtoms = nAtoms;
+    this.fftY = fftY;
+    this.fftZ = fftZ;
   }
 
   /**
-   * Getter for the field <code>lowerBounds</code>.
-   *
-   * @return a copy of the lower bounds array.
+   * {@inheritDoc}
    */
-  public int[] getLowerBounds() {
-    int[] boundsToReturn = new int[nThreads];
-    arraycopy(lowerBounds, 1, boundsToReturn, 0, nThreads);
-    return boundsToReturn;
-  }
-
-  /**
-   * getThreadWeights.
-   *
-   * @return a copy of the thread weights array.
-   */
-  public int[] getThreadWeights() {
-    int[] weightsToReturn = new int[nThreads];
-    arraycopy(weights, 0, weightsToReturn, 0, nThreads);
-    return weightsToReturn;
-  }
-
-  /** {@inheritDoc} */
   @Override
   public boolean isFixedSchedule() {
     return true;
   }
 
-  /** {@inheritDoc} */
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public Range next(int threadID) {
     if (!threadDone[threadID]) {
@@ -110,7 +95,9 @@ public class GradientSchedule extends IntegerSchedule {
     return null;
   }
 
-  /** {@inheritDoc} */
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void start(int nThreads, Range chunkRange) {
     this.nThreads = nThreads;
@@ -130,15 +117,15 @@ public class GradientSchedule extends IntegerSchedule {
   /**
    * updateWeights.
    *
-   * @param weights an array of {@link int} objects.
+   * @param weights an array of weights.
    */
-  void updateWeights(int[] weights) {
+  public void updateWeights(int[] weights) {
     this.weights = weights;
   }
 
   private int totalWeight() {
     int totalWeight = 0;
-    for (int i = 0; i < nAtoms; i++) {
+    for (int i = 0; i < fftZ * fftY; i++) {
       totalWeight += weights[i];
     }
     return totalWeight;
@@ -147,42 +134,36 @@ public class GradientSchedule extends IntegerSchedule {
   private void defineRanges() {
     double totalWeight = totalWeight();
 
-    /*
-     Infrequent edge case where the total weight is less than or equal to
-     the number of threads.
-    */
+    // Infrequent edge case where the total weight is less than or equal to the number of threads.
     if (totalWeight <= nThreads) {
-      Range temp = new Range(0, nAtoms - 1);
+      Range temp = new Range(0, fftZ * fftY - 1);
       ranges = temp.subranges(nThreads);
       return;
     }
 
-    /*
-     Handle the case where we only have a single thread, which will
-     receive all the atoms.
-    */
+    // Handle the case where we only have a single thread, which will receive all the rows.
     if (nThreads == 1) {
-      ranges[0] = new Range(0, nAtoms - 1);
+      ranges[0] = new Range(0, fftZ * fftY - 1);
       return;
     }
 
     double targetWeight = (totalWeight / nThreads);
-    int lastAtom = nAtoms - 1;
+    int lastRow = fftZ * fftY - 1;
 
-    int currentAtom = 0;
+    int currentRow = 0;
     lowerBounds[0] = 0;
     int currentThread = 0;
     while (currentThread < nThreads) {
       int threadWeight = 0;
-      while (threadWeight < targetWeight && currentAtom < lastAtom) {
-        threadWeight += weights[currentAtom];
-        currentAtom++;
+      while (threadWeight < targetWeight && currentRow < lastRow) {
+        threadWeight += weights[currentRow];
+        currentRow++;
       }
       currentThread++;
-      if (currentAtom < lastAtom) {
-        lowerBounds[currentThread] = currentAtom;
+      if (currentRow < lastRow) {
+        lowerBounds[currentThread] = currentRow;
       } else {
-        lowerBounds[currentThread] = lastAtom;
+        lowerBounds[currentThread] = lastRow;
         break;
       }
     }
@@ -193,14 +174,41 @@ public class GradientSchedule extends IntegerSchedule {
     for (currentThread = 0; currentThread < lastThread - 1; currentThread++) {
       ranges[currentThread] =
           new Range(lowerBounds[currentThread], lowerBounds[currentThread + 1] - 1);
+      // logger.info(String.format("Range for thread %d %s.", currentThread,
+      // ranges[currentThread]));
+
     }
 
     // Final range for the last thread that will receive work.
-    ranges[lastThread - 1] = new Range(lowerBounds[lastThread - 1], lastAtom);
+    ranges[lastThread - 1] = new Range(lowerBounds[lastThread - 1], lastRow);
+    // logger.info(String.format("Range for thread %d %s.", lastThread - 1, ranges[lastThread -
+    // 1]));
 
     // Left-over threads with null ranges.
     for (int it = lastThread; it < nThreads; it++) {
       ranges[it] = null;
     }
+  }
+
+  /**
+   * getThreadWeights.
+   *
+   * @return the thread weights.
+   */
+  public int[] getThreadWeights() {
+    int[] weightsToReturn = new int[nThreads];
+    arraycopy(weights, 0, weightsToReturn, 0, nThreads);
+    return weightsToReturn;
+  }
+
+  /**
+   * Getter for the field <code>lowerBounds</code>.
+   *
+   * @return the lower bounds.
+   */
+  public int[] getLowerBounds() {
+    int[] boundsToReturn = new int[nThreads];
+    arraycopy(lowerBounds, 1, boundsToReturn, 0, nThreads);
+    return boundsToReturn;
   }
 }

@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -106,7 +106,11 @@ public class XRayMinimizeTest extends AlgorithmsTest {
     MTZFilter mtzFilter = new MTZFilter();
     CIFFilter cifFilter = new CIFFilter();
     Crystal crystal = Crystal.checkProperties(properties);
-    Resolution resolution = Resolution.checkProperties(properties);
+    double defaultResolution = -1.0;
+    if (crystal != null) {
+      defaultResolution = mtzFilter.getResolution(mtzFile, crystal);
+    }
+    Resolution resolution = Resolution.checkProperties(properties, false, defaultResolution);
     if (crystal == null || resolution == null) {
       if (mtzname != null) {
         reflectionList = mtzFilter.getReflectionList(mtzFile);
@@ -149,7 +153,7 @@ public class XRayMinimizeTest extends AlgorithmsTest {
     sigmaAMinimize.minimize(7, 2.0e-2);
 
     SplineMinimize splineMinimize = new SplineMinimize(reflectionList, refinementData,
-        refinementData.spline, SplineEnergy.Type.FOFC);
+        refinementData.spline, SplineEnergy.SplineType.FOFC);
     splineMinimize.minimize(7, 1e-5);
   }
 
@@ -163,18 +167,18 @@ public class XRayMinimizeTest extends AlgorithmsTest {
                 "1NSF.pdb",
                 "1NSF.mtz",
                 null,
-                25.17866326312945,
-                25.448305511010272,
-                0.893903833644513,
-                0.14952134994994207
+                25.073186034370938,
+                25.310851476829942,
+                0.895228035088474,
+                0.1465683355168056
             },
             {
-                true,
+                false,
                 "SNARE complex",
                 "1N7S.pdb",
                 "1N7S.mtz",
                 null,
-                19.41267149593652,
+                19.43334760963002,
                 21.555930987392596,
                 0.9336845537932159,
                 0.1319269157669047
@@ -263,7 +267,7 @@ public class XRayMinimizeTest extends AlgorithmsTest {
       return;
     }
     SplineMinimize splineMinimize = new SplineMinimize(reflectionList, refinementData,
-        refinementData.spline, SplineEnergy.Type.FOFC);
+        refinementData.spline, SplineEnergy.SplineType.FOFC);
     SplineEnergy splineEnergy = splineMinimize.getSplineEnergy();
     int n = splineMinimize.getNumberOfVariables();
     double[] x = new double[n];
@@ -292,7 +296,7 @@ public class XRayMinimizeTest extends AlgorithmsTest {
       return;
     }
     SplineMinimize splineMinimize = new SplineMinimize(
-        reflectionList, refinementData, refinementData.spline, SplineEnergy.Type.F1F2);
+        reflectionList, refinementData, refinementData.spline, SplineEnergy.SplineType.F1F2);
     SplineEnergy splineEnergy = splineMinimize.getSplineEnergy();
     int n = splineMinimize.getNumberOfVariables();
     double[] x = new double[n];
@@ -321,7 +325,7 @@ public class XRayMinimizeTest extends AlgorithmsTest {
       return;
     }
     SplineMinimize splineMinimize = new SplineMinimize(
-        reflectionList, refinementData, refinementData.spline, SplineEnergy.Type.FCTOESQ);
+        reflectionList, refinementData, refinementData.spline, SplineEnergy.SplineType.FCTOESQ);
     SplineEnergy splineEnergy = splineMinimize.getSplineEnergy();
     int n = splineMinimize.getNumberOfVariables();
     double[] x = new double[n];
@@ -350,7 +354,7 @@ public class XRayMinimizeTest extends AlgorithmsTest {
       return;
     }
     SplineMinimize splineMinimize = new SplineMinimize(
-        reflectionList, refinementData, refinementData.spline, SplineEnergy.Type.FOTOESQ);
+        reflectionList, refinementData, refinementData.spline, SplineEnergy.SplineType.FOTOESQ);
     SplineEnergy splineEnergy = splineMinimize.getSplineEnergy();
     int n = splineMinimize.getNumberOfVariables();
     double[] x = new double[n];

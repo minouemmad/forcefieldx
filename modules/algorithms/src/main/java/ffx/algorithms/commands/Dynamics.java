@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -165,8 +165,7 @@ public class Dynamics extends AlgorithmsCommand {
 
     if (barostatOptions.getPressure() > 0) {
       CrystalPotential crystalPotential = (CrystalPotential) potential;
-      Barostat barostat = barostatOptions.createBarostat(activeAssembly, crystalPotential);
-      potential = barostat;
+      potential = barostatOptions.createBarostat(activeAssembly, crystalPotential);
     }
 
     Comm world = Comm.world();
@@ -188,11 +187,11 @@ public class Dynamics extends AlgorithmsCommand {
     } else {
       logger.info("\n Running replica exchange molecular dynamics on " + filename);
       int rank = (size > 1) ? world.rank() : 0;
-      logger.info("Rank:" + Integer.toString(rank));
+      logger.info("Rank:" + rank);
 
       File structureFile = new File(filename);
       String baseFilename = FilenameUtils.removeExtension(structureFile.getName());
-      File rankDirectory = new File(structureFile.getParent() + File.separator + Integer.toString(rank));
+      File rankDirectory = new File(structureFile.getParent() + File.separator + rank);
       if (!rankDirectory.exists()) {
         rankDirectory.mkdir();
       }

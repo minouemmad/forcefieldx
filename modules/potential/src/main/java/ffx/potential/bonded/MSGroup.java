@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -49,6 +49,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.logging.Logger;
 
+import static ffx.numerics.math.DoubleMath.dist2;
 import static java.lang.String.format;
 
 /**
@@ -114,6 +115,10 @@ public abstract class MSGroup extends MSNode {
   private double[] center;
   /** List of under-constrained Atoms */
   private List<Atom> danglingAtomList;
+  /**
+   * If true, the getAtomNode command will search for deuterium.
+   */
+  private boolean matchDeuterium = true;
 
   /** Default Constructor initializes a MultiScaleGroup and a few of its sub-nodes. */
   public MSGroup() {
@@ -673,7 +678,33 @@ public abstract class MSGroup extends MSNode {
         return msNode;
       }
     }
+    if (matchDeuterium) {
+      n = n.replaceFirst("H", "D");
+      for (MSNode msNode : list) {
+        if (msNode.getName().compareTo(n) == 0) {
+          return msNode;
+        }
+      }
+    }
     return null;
+  }
+
+  /**
+   * Sets the flag to determine whether deuterium matches should be considered.
+   *
+   * @param matchDeuterium a boolean indicating if deuterium matching is enabled
+   */
+  public void setMatchDeuterium(boolean matchDeuterium) {
+    this.matchDeuterium = matchDeuterium;
+  }
+
+  /**
+   * Retrieves the current value of the matchDeuterium flag.
+   *
+   * @return true if matchDeuterium is enabled, false otherwise
+   */
+  public boolean getMatchDeuterium() {
+    return matchDeuterium;
   }
 
   /**
@@ -1000,6 +1031,70 @@ public abstract class MSGroup extends MSNode {
     ureyBradleyNode.removeAllChildren();
     ureyBradleyNode = t;
     termNode.add(ureyBradleyNode);
+  }
+
+  /**
+   * Check if this group of atoms contains an altLoc.
+   * @param altLoc the alternate location to look for.
+   * @return True if a matching alternate location is found.
+   */
+  public boolean conatainsAltLoc(Character altLoc) {
+    List<Atom> atoms = getAtomList();
+    for (Atom a : atoms) {
+      if (a.getAltLoc() == altLoc) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Set the occupancy for each atom of the group.
+   * @param occupancy The occupancy.
+   */
+  public void setOccupancy(double occupancy) {
+    List<Atom> atoms = getAtomList();
+    for (Atom a : atoms) {
+      a.setOccupancy(occupancy);
+    }
+  }
+
+  /**
+   * Sets the alternate location identifier for all atoms in the atom list.
+   * The alternate location identifier distinguishes atoms in different
+   * conformations or alternate positions within a structure.
+   *
+   * @param altLoc the alternate location identifier to be set for the atoms
+   */
+  public void setAtomicAltLoc(Character altLoc) {
+    List<Atom> atoms = getAtomList();
+    for (Atom a : atoms) {
+      a.setAltLoc(altLoc);
+    }
+  }
+
+  /**
+   * Check if a group of atoms have the same coordinates as this group.
+   * @param other The second group of atoms.
+   * @return True if both groups have the same coordinates.
+   */
+  public boolean conformationEquals(MSGroup other) {
+    List<Atom> atoms = getAtomList();
+    List<Atom> otherAtoms = other.getAtomList();
+    if (atoms.size() != otherAtoms.size()) return false;
+    double[] xyz = new double[3];
+    double[] xyzOther = new double[3];
+    for (int i = 0; i < atoms.size(); i++) {
+      Atom a1 = atoms.get(i);
+      Atom a2 = otherAtoms.get(i);
+      a1.getXYZ(xyz);
+      a2.getXYZ(xyzOther);
+      if (dist2(xyz, xyzOther) > 0.0) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   /** {@inheritDoc} */

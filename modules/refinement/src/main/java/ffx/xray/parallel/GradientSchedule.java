@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -35,57 +35,78 @@
 // exception statement from your version.
 //
 // ******************************************************************************
-package ffx.xray;
+package ffx.xray.parallel;
 
 import edu.rit.pj.IntegerSchedule;
 import edu.rit.util.Range;
 
 import static java.lang.System.arraycopy;
 import static java.util.Arrays.fill;
-import static org.apache.commons.math3.util.FastMath.min;
 
 /**
- * SliceSchedule class.
+ * GradientSchedule class.
  *
  * @author Armin Avdic
  * @since 1.0
  */
-public class SliceSchedule extends IntegerSchedule {
+public class GradientSchedule extends IntegerSchedule {
 
-  private final int fftZ;
   private final int[] lowerBounds;
+  private final int nAtoms;
   private int nThreads;
   private boolean[] threadDone;
   private Range[] ranges;
   private int[] weights;
 
   /**
-   * Constructor for SliceSchedule.
+   * Constructor for GradientSchedule.
    *
    * @param nThreads a int.
-   * @param fftZ a int.
+   * @param nAtoms   a int.
    */
-  protected SliceSchedule(int nThreads, int fftZ) {
+  public GradientSchedule(int nThreads, int nAtoms) {
     this.nThreads = nThreads;
-    this.fftZ = fftZ;
-    int length = min(nThreads, fftZ);
-    threadDone = new boolean[length];
-    ranges = new Range[length];
-    lowerBounds = new int[length + 1];
+    threadDone = new boolean[nThreads];
+    ranges = new Range[nThreads];
+    lowerBounds = new int[nThreads + 1];
+    this.nAtoms = nAtoms;
   }
 
-  /** {@inheritDoc} */
+  /**
+   * Getter for the field <code>lowerBounds</code>.
+   *
+   * @return a copy of the lower bounds array.
+   */
+  public int[] getLowerBounds() {
+    int[] boundsToReturn = new int[nThreads];
+    arraycopy(lowerBounds, 1, boundsToReturn, 0, nThreads);
+    return boundsToReturn;
+  }
+
+  /**
+   * getThreadWeights.
+   *
+   * @return a copy of the thread weights array.
+   */
+  public int[] getThreadWeights() {
+    int[] weightsToReturn = new int[nThreads];
+    arraycopy(weights, 0, weightsToReturn, 0, nThreads);
+    return weightsToReturn;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public boolean isFixedSchedule() {
     return true;
   }
 
-  /** {@inheritDoc} */
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public Range next(int threadID) {
-    if (threadID >= min(fftZ, nThreads)) {
-      return null;
-    }
     if (!threadDone[threadID]) {
       threadDone[threadID] = true;
       return ranges[threadID];
@@ -93,19 +114,20 @@ public class SliceSchedule extends IntegerSchedule {
     return null;
   }
 
-  /** {@inheritDoc} */
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void start(int nThreads, Range chunkRange) {
     this.nThreads = nThreads;
-    int length = min(nThreads, fftZ);
 
-    if (length != threadDone.length) {
-      threadDone = new boolean[length];
+    if (nThreads != threadDone.length) {
+      threadDone = new boolean[nThreads];
     }
     fill(threadDone, false);
 
-    if (length != ranges.length) {
-      ranges = new Range[length];
+    if (nThreads != ranges.length) {
+      ranges = new Range[nThreads];
     }
     fill(lowerBounds, 0);
     defineRanges();
@@ -114,15 +136,15 @@ public class SliceSchedule extends IntegerSchedule {
   /**
    * updateWeights.
    *
-   * @param weights an array of {@link int} objects.
+   * @param weights an array of weights.
    */
-  void updateWeights(int[] weights) {
+  public void updateWeights(int[] weights) {
     this.weights = weights;
   }
 
   private int totalWeight() {
     int totalWeight = 0;
-    for (int i = 0; i < fftZ; i++) {
+    for (int i = 0; i < nAtoms; i++) {
       totalWeight += weights[i];
     }
     return totalWeight;
@@ -131,38 +153,42 @@ public class SliceSchedule extends IntegerSchedule {
   private void defineRanges() {
     double totalWeight = totalWeight();
 
-    int length = min(nThreads, fftZ);
-
-    // Infrequent edge case where the total weight is less than or equal to the number of threads.
-    if (totalWeight <= length) {
-      Range temp = new Range(0, fftZ - 1);
-      ranges = temp.subranges(length);
+    /*
+     Infrequent edge case where the total weight is less than or equal to
+     the number of threads.
+    */
+    if (totalWeight <= nThreads) {
+      Range temp = new Range(0, nAtoms - 1);
+      ranges = temp.subranges(nThreads);
       return;
     }
 
-    // Handle the case where we only have a single thread, which will receive all the slices.
+    /*
+     Handle the case where we only have a single thread, which will
+     receive all the atoms.
+    */
     if (nThreads == 1) {
-      ranges[0] = new Range(0, fftZ - 1);
+      ranges[0] = new Range(0, nAtoms - 1);
       return;
     }
 
-    double targetWeight = (totalWeight / nThreads) * .96;
-    int lastSlice = fftZ - 1;
+    double targetWeight = (totalWeight / nThreads);
+    int lastAtom = nAtoms - 1;
 
-    int currentSlice = 0;
+    int currentAtom = 0;
     lowerBounds[0] = 0;
     int currentThread = 0;
-    while (currentThread < length) {
+    while (currentThread < nThreads) {
       int threadWeight = 0;
-      while (threadWeight < targetWeight && currentSlice < lastSlice) {
-        threadWeight += weights[currentSlice];
-        currentSlice++;
+      while (threadWeight < targetWeight && currentAtom < lastAtom) {
+        threadWeight += weights[currentAtom];
+        currentAtom++;
       }
       currentThread++;
-      if (currentSlice < lastSlice) {
-        lowerBounds[currentThread] = currentSlice;
+      if (currentAtom < lastAtom) {
+        lowerBounds[currentThread] = currentAtom;
       } else {
-        lowerBounds[currentThread] = lastSlice;
+        lowerBounds[currentThread] = lastAtom;
         break;
       }
     }
@@ -176,35 +202,11 @@ public class SliceSchedule extends IntegerSchedule {
     }
 
     // Final range for the last thread that will receive work.
-    ranges[lastThread - 1] = new Range(lowerBounds[lastThread - 1], lastSlice);
+    ranges[lastThread - 1] = new Range(lowerBounds[lastThread - 1], lastAtom);
 
     // Left-over threads with null ranges.
-    for (int it = lastThread; it < length; it++) {
+    for (int it = lastThread; it < nThreads; it++) {
       ranges[it] = null;
     }
-  }
-
-  /**
-   * getThreadWeights.
-   *
-   * @return an array of {@link int} objects.
-   */
-  int[] getThreadWeights() {
-    int length = min(fftZ, nThreads);
-    int[] weightsToReturn = new int[length];
-    arraycopy(weights, 0, weightsToReturn, 0, length);
-    return weightsToReturn;
-  }
-
-  /**
-   * Getter for the field <code>lowerBounds</code>.
-   *
-   * @return an array of {@link int} objects.
-   */
-  int[] getLowerBounds() {
-    int length = min(fftZ, nThreads);
-    int[] boundsToReturn = new int[length];
-    arraycopy(lowerBounds, 1, boundsToReturn, 0, length);
-    return boundsToReturn;
   }
 }

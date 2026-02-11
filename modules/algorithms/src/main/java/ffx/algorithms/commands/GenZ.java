@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -165,6 +165,10 @@ public class GenZ extends AlgorithmsCommand {
       return this;
     }
 
+    // Atomic clashes are expected and will be handled using direct induced dipoles.
+    System.setProperty("sor-scf-fallback", "false");
+    System.setProperty("direct-scf-fallback", "true");
+
     // Get all the important flags from the manybody options
     double titrationPH = manyBodyOptions.getTitrationPH();
     double inclusionCutoff = manyBodyOptions.getInclusionCutoff();
@@ -314,9 +318,8 @@ public class GenZ extends AlgorithmsCommand {
         // Create new MolecularAssembly with additional protons and update the ForceFieldEnergy
         titrationManyBody = new TitrationManyBody(filename, activeAssembly.getForceField(),
             resNumberList, titrationPH, manyBodyOptions);
-        MolecularAssembly protonatedAssembly = titrationManyBody.getProtonatedAssembly();
-        setActiveAssembly(protonatedAssembly);
-        potentialEnergy = protonatedAssembly.getPotentialEnergy();
+        activeAssembly = titrationManyBody.getProtonatedAssembly();
+        potentialEnergy = activeAssembly.getPotentialEnergy();
       }
 
       // Turn on softcoring lambda

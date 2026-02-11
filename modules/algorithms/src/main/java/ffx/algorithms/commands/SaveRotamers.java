@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -154,8 +154,7 @@ public class SaveRotamers extends AlgorithmsCommand {
       }
       titrationManyBody = new TitrationManyBody(filename, activeAssembly.getForceField(),
           resNumberList, 7.0);
-      MolecularAssembly protonatedAssembly = titrationManyBody.getProtonatedAssembly();
-      setActiveAssembly(protonatedAssembly);
+      activeAssembly = titrationManyBody.getProtonatedAssembly();
     }
     RotamerLibrary rLib = new RotamerLibrary(
         RotamerLibrary.ProteinLibrary.intToProteinLibrary(library), true);

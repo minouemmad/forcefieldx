@@ -50,6 +50,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import java.util.*;
+import static java.lang.Math.*;
+import org.apache.commons.math3.linear.Array2DRowRealMatrix;
+import org.apache.commons.math3.linear.EigenDecomposition;
 import static java.lang.String.format;
 
 /**
@@ -60,7 +64,8 @@ import static java.lang.String.format;
  * <br>
  * ffxc test.FindRestraints [options] &lt;filename&gt;
  */
-@Command(description = " Find guest atoms to restrain near host molecule.", name = "test.FindRestraints")
+@Command(description = "Find guest atoms for COM or Boresch restraints.",
+        name = "test.FindRestraints")
 public class FindRestraints extends AlgorithmsCommand {
 
   /**
@@ -83,6 +88,39 @@ public class FindRestraints extends AlgorithmsCommand {
   @Option(names = {"--distanceCutoff"}, paramLabel = "5", defaultValue = "5",
       description = "Cutoff to use when selecting guest atoms near host COM")
   private double distanceCutoff;
+
+  // ------------------------
+  // Boresch Options
+  // ------------------------
+
+  @Option(names = {"--boresch"}, defaultValue = "false",
+      description = "Use Boresch anchor selection instead of COM-based selection.")
+  private boolean boresch;
+
+  // From GHOAT paper, H1, H2, H3 are explicitly defined by the user
+  @Option(names = {"--H1"}, paramLabel = "int",
+      description = "Host anchor H1 atom index.")
+  private Integer H1Index;
+
+  @Option(names = {"--H2"}, paramLabel = "int",
+      description = "Host anchor H2 atom index.")
+  private Integer H2Index;
+
+  @Option(names = {"--H3"}, paramLabel = "int",
+      description = "Host anchor H3 atom index.")
+  private Integer H3Index;
+
+  @Option(names = {"--l1Range"}, defaultValue = "3.5",
+      description = "Cylinder diameter/height for G1 search.")
+  private double l1Range;
+
+  @Option(names = {"--minAdis"}, defaultValue = "1.5",
+      description = "Minimum distance between guest anchors.")
+  private double minAdis;
+
+  @Option(names = {"--maxAdis"}, defaultValue = "5.0",
+      description = "Maximum distance between guest anchors.")
+  private double maxAdis;
 
   /**
    * One or more filenames.
@@ -142,13 +180,39 @@ public class FindRestraints extends AlgorithmsCommand {
       logger.info(helpString());
       return this;
     }
+    Molecule host = null;
+    Molecule guest = null;
 
+    for (Molecule mol : activeAssembly.getMoleculeArray()) {
+      if (mol.getName().contains(hostName)) host = mol;
+      if (mol.getName().contains(guestName)) guest = mol;
+    }
+
+    if (host == null || guest == null) {
+      logger.severe("Host or Guest molecule not found.");
+      return this;
+    }
+
+    if (boresch) {
+      runBoreschMode(host, guest);
+    } else {
+      runCOMMode();
+    }
+
+    return this;
+  }
+
+  // ================================================================
+  // ==================== COM MODE =================================
+  // ================================================================
+  private void runCOMMode() {   
     Molecule[] molArr = activeAssembly.getMoleculeArray();
 
     List<Atom> restrainHostList = new ArrayList<>();
     List<Atom> restrainList = new ArrayList<>();
     double[] COM = new double[3];
     double[] subCOM = new double[3];
+
     int[] restrainHostIndices = new int[]{11, 16, 17, 20, 23, 26, 31, 32, 39, 40, 51, 63, 64, 70, 71, 82, 94, 95, 101, 102, 113, 125, 126, 132, 133, 144, 156, 157, 163, 164, 175, 187, 188, 191, 198};
     for (Molecule molecule : molArr) {
       logger.info(format(" Molecule name: " + molecule.getName()));
@@ -191,7 +255,290 @@ public class FindRestraints extends AlgorithmsCommand {
         .toArray();
     logger.info(format(" Restrain list indices: " + Arrays.toString(restrainIndices)));
 
-    return this;
+  }
+
+  // ================================================================
+  // ==================== BORESCH MODE ==============================
+  // ================================================================
+
+  /**
+   * Calculate rotation matrix to align host to Z-axis
+   */
+  private double[][] getAlignmentRotationMatrix(Atom[] hostAtoms, double[] com) {
+      // Compute inertia tensor
+      double[][] I = new double[3][3];
+
+      for (Atom atom : hostAtoms) {
+          double m = atom.getMass();
+          double[] r = atom.getXYZ().get();
+          // Use coordinates relative to COM
+          double rx = r[0] - com[0];
+          double ry = r[1] - com[1];
+          double rz = r[2] - com[2];
+
+          I[0][0] += m * (ry*ry + rz*rz);
+          I[1][1] += m * (rx*rx + rz*rz);
+          I[2][2] += m * (rx*rx + ry*ry);
+
+          I[0][1] -= m * rx*ry;
+          I[0][2] -= m * rx*rz;
+          I[1][2] -= m * ry*rz;
+      }
+
+      I[1][0] = I[0][1];
+      I[2][0] = I[0][2];
+      I[2][1] = I[1][2];
+
+      // Diagonalize inertia tensor
+      EigenDecomposition ed = new EigenDecomposition(new Array2DRowRealMatrix(I));
+      return ed.getV().getData();
+  }
+
+  /**
+   * Apply translation and rotation transformation to atoms
+   */
+  private void applyTransformation(Atom[] atoms, double[] com, double[][] rotationMatrix) {
+      for (Atom atom : atoms) {
+          double[] r = atom.getXYZ().get();
+          
+          // Translate to origin
+          double tx = r[0] - com[0];
+          double ty = r[1] - com[1];
+          double tz = r[2] - com[2];
+          
+          // Rotate
+          double[] rotated = new double[3];
+          for (int i = 0; i < 3; i++) {
+              rotated[i] = rotationMatrix[i][0]*tx + 
+                          rotationMatrix[i][1]*ty + 
+                          rotationMatrix[i][2]*tz;
+          }
+          
+          atom.setXYZ(rotated);  // Set the new coordinates
+      }
+  }
+
+  private void runBoreschMode(Molecule host, Molecule guest) {
+
+    if (H1Index == null || H2Index == null || H3Index == null) {
+      logger.severe("Boresch mode requires --H1 --H2 --H3 indices.");
+      return;
+    }
+
+    Atom H1 = findAtomByIndex(host, H1Index);
+    Atom H2 = findAtomByIndex(host, H2Index);
+    Atom H3 = findAtomByIndex(host, H3Index);
+
+    if (H1 == null || H2 == null || H3 == null) {
+      logger.severe("Could not locate host anchor atoms.");
+      return;
+    }
+
+    // Calculate principal axis from HOST ONLY
+    Atom[] hostAtoms = host.getAtomList().toArray(new Atom[0]);
+    double[] com = getCOM(hostAtoms);
+    double[][] rotationMatrix = getAlignmentRotationMatrix(hostAtoms, com);
+    
+    // Apply transformation to ALL atoms (host + guest)
+    Atom[] guestAtoms = guest.getAtomList().toArray(new Atom[0]);
+    applyTransformation(hostAtoms, com, rotationMatrix);
+    applyTransformation(guestAtoms, com, rotationMatrix);
+
+
+    Atom G1 = selectG1(guest);
+    if (G1 == null) return;
+    
+    Atom G2 = selectG2(guest, G1);
+    if (G2 == null) return;
+    
+    Atom G3 = selectG3(guest, G1, G2);
+    if (G3 == null) return;
+
+    // Calculate all geometric parameters
+    double r = distance(H1.getXYZ().get(), G1.getXYZ().get());
+    double thetaA = angle(H2, H1, G1);
+    double thetaB = angle(H1, G1, G2);
+    double phiA = dihedral(H3, H2, H1, G1);
+    double phiB = dihedral(H2, H1, G1, G2);
+    double phiC = dihedral(H1, G1, G2, G3);
+
+    logger.info(format("Distance H1-G1 (r): %.3f Å", r));
+    logger.info(format("Angle H2-H1-G1 (θA): %.2f°", thetaA));
+    logger.info(format("Angle H1-G1-G2 (θB): %.2f°", thetaB));
+    logger.info(format("Dihedral H3-H2-H1-G1 (φA): %.2f°", phiA));
+    logger.info(format("Dihedral H2-H1-G1-G2 (φB): %.2f°", phiB));
+    logger.info(format("Dihedral H1-G1-G2-G3 (φC): %.2f°", phiC));
+    
+    // Validate geometry (warn about near-degenerate angles)
+    if (thetaA < 20.0 || thetaA > 160.0) {
+        logger.warning(format("Angle θA = %.2f° is near-degenerate.", thetaA));
+    }
+    if (thetaB < 20.0 || thetaB > 160.0) {
+        logger.warning(format("Angle θB = %.2f° is near-degenerate.", thetaB));
+    }
+  }
+  
+  /**
+   * Calculate dihedral angle between four atoms
+   */
+  private static double dihedral(Atom a, Atom b, Atom c, Atom d) {
+      double[] v1 = subtract(a.getXYZ().get(), b.getXYZ().get());
+      double[] v2 = subtract(c.getXYZ().get(), b.getXYZ().get());
+      double[] v3 = subtract(d.getXYZ().get(), c.getXYZ().get());
+      
+      double[] n1 = cross(v1, v2);
+      double[] n2 = cross(v2, v3);
+      
+      double[] m1 = cross(n1, v2);
+      
+      double x = dot(n1, n2);
+      double y = dot(m1, n2);
+      
+      return toDegrees(atan2(y, x));
+  }
+
+  private static double[] cross(double[] a, double[] b) {
+      return new double[]{
+          a[1]*b[2] - a[2]*b[1],
+          a[2]*b[0] - a[0]*b[2],
+          a[0]*b[1] - a[1]*b[0]
+      };
+  }
+
+  private static double dot(double[] a, double[] b) {
+      return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+  }
+
+
+  // ================================================================
+  // ==================== GUEST SELECTION ===========================
+  // ================================================================
+
+  private Atom selectG1(Molecule guest) {
+      double radius = l1Range / 2.0;
+      double radius2 = radius * radius;
+      double halfHeight = l1Range / 2.0;
+
+      // MISSING: You need to declare these variables
+      Atom G1 = null;
+      double bestR2 = Double.MAX_VALUE;
+
+      // MISSING: You need to iterate through guest atoms
+      for (Atom atom : guest.getAtomList()) {
+          if (!atom.isHeavy()) continue;
+
+          double[] xyz = atom.getXYZ().get();
+          double r2 = xyz[0]*xyz[0] + xyz[1]*xyz[1];
+
+          if (Math.abs(xyz[2]) <= halfHeight && r2 <= radius2) {
+              if (r2 < bestR2) {
+                  bestR2 = r2;
+                  G1 = atom;
+              }
+          }
+      }
+      
+      if (G1 == null) {
+          logger.severe("anch1 error: No valid G1 anchor found.");
+          return null;  
+      }
+
+      return G1;  
+  }
+
+  private Atom selectG2(Molecule guest, Atom G1) {
+
+    Atom best = null;
+    double bestProj = Double.MAX_VALUE;
+
+    double[] g1 = G1.getXYZ().get();
+
+    for (Atom atom : guest.getAtomList()) {
+      if (atom == G1 || !atom.isHeavy()) continue;
+
+      double d = distance(g1, atom.getXYZ().get());
+      if (d < minAdis || d > maxAdis) continue;
+
+      double[] diff = subtract(atom.getXYZ().get(), g1);
+      double proj2 = diff[0] * diff[0] + diff[1] * diff[1];
+
+      if (proj2 < bestProj) {
+        best = atom;
+        bestProj = proj2;
+      }
+    }
+    if (best == null) {
+        logger.severe("anch2 error: Could not identify valid G2 anchor.");
+    }
+
+    return best;
+  }
+
+  private Atom selectG3(Molecule guest, Atom G1, Atom G2) {
+      Atom best = null;
+      double bestAngleDiff = Double.MAX_VALUE;
+
+      for (Atom atom : guest.getAtomList()) {
+          if (atom == G1 || atom == G2 || !atom.isHeavy()) continue;
+
+          // Check distance from G2 (as in GHOAT)
+          double d = distance(G2.getXYZ().get(), atom.getXYZ().get());
+          if (d < minAdis || d > maxAdis) continue;
+
+          // ADD: Also check distance from G1 to avoid clustering
+          double d_g1 = distance(G1.getXYZ().get(), atom.getXYZ().get());
+          if (d_g1 < minAdis) continue;
+
+          double ang = angle(G1, G2, atom);
+
+          // Reject Degenerate Angles for G3
+          if (ang < 20.0 || ang > 160.0) continue;
+
+          double diff = abs(ang - 90.0);
+
+          if (diff < bestAngleDiff) {
+              bestAngleDiff = diff;
+              best = atom;
+          }
+      }
+
+      if (best == null) {
+          logger.severe("anch3 error: Could not identify valid G3 anchor.");
+      }
+
+      return best;
+  }
+
+  // ================================================================
+  // ==================== GEOMETRY HELPERS ==========================
+  // ================================================================
+
+  private static double distance(double[] a, double[] b) {
+    return sqrt(pow(a[0] - b[0], 2)
+            + pow(a[1] - b[1], 2)
+            + pow(a[2] - b[2], 2));
+  }
+
+  private static double[] subtract(double[] a, double[] b) {
+    return new double[]{a[0] - b[0], a[1] - b[1], a[2] - b[2]};
+  }
+
+  private static double angle(Atom a, Atom b, Atom c) {
+    double[] v1 = subtract(a.getXYZ().get(), b.getXYZ().get());
+    double[] v2 = subtract(c.getXYZ().get(), b.getXYZ().get());
+
+    double dot = v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2];
+    double mag1 = sqrt(v1[0]*v1[0] + v1[1]*v1[1] + v1[2]*v1[2]);
+    double mag2 = sqrt(v2[0]*v2[0] + v2[1]*v2[1] + v2[2]*v2[2]);
+
+    return toDegrees(acos(dot / (mag1 * mag2)));
+  }
+
+  private static Atom findAtomByIndex(Molecule mol, int index) {
+    for (Atom atom : mol.getAtomList()) {
+      if (atom.getIndex() == index) return atom;
+    }
+    return null;
   }
 
   /**

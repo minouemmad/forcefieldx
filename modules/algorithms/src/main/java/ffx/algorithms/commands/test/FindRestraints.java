@@ -420,6 +420,17 @@ public class FindRestraints extends AlgorithmsCommand {
     restoreCoordinates(hostAtoms, hostCoords);
     restoreCoordinates(guestAtoms, guestCoords);
 
+    // Log selected atoms
+    logger.info(format("\n=== Selected Boresch Anchors ==="));
+    logger.info(format("Host anchors:"));
+    logger.info(format("  H1: %s (index %d, residue %d)", H1.getName(), H1.getIndex(), H1.getResidueNumber()));
+    logger.info(format("  H2: %s (index %d, residue %d)", H2.getName(), H2.getIndex(), H2.getResidueNumber()));
+    logger.info(format("  H3: %s (index %d, residue %d)", H3.getName(), H3.getIndex(), H3.getResidueNumber()));
+    logger.info(format("Guest anchors:"));
+    logger.info(format("  G1: %s (index %d, residue %d)", G1.getName(), G1.getIndex(), G1.getResidueNumber()));
+    logger.info(format("  G2: %s (index %d, residue %d)", G2.getName(), G2.getIndex(), G2.getResidueNumber()));
+    logger.info(format("  G3: %s (index %d, residue %d)", G3.getName(), G3.getIndex(), G3.getResidueNumber()));
+
     // Calculate all geometric parameters
     double r = distance(H1.getXYZ().get(), G1.getXYZ().get());
     double thetaA = angle(H2, H1, G1);
@@ -428,6 +439,7 @@ public class FindRestraints extends AlgorithmsCommand {
     double phiB = dihedral(H2, H1, G1, G2);
     double phiC = dihedral(H1, G1, G2, G3);
 
+    logger.info(format("\n=== Boresch Restraint Parameters ==="));
     logger.info(format("Distance H1-G1 (r): %.3f Å", r));
     logger.info(format("Angle H2-H1-G1 (θA): %.2f°", thetaA));
     logger.info(format("Angle H1-G1-G2 (θB): %.2f°", thetaB));

@@ -110,6 +110,18 @@ public class FindRestraints extends AlgorithmsCommand {
       description = "Host anchor H3 atom index.")
   private Integer H3Index;
 
+    @Option(names = {"--H1Mask"}, paramLabel = ":res@atom",
+      description = "Host anchor H1 selection mask (e.g., :1@C4).")
+    private String H1Mask;
+
+    @Option(names = {"--H2Mask"}, paramLabel = ":res@atom",
+      description = "Host anchor H2 selection mask (e.g., :3@C4).")
+    private String H2Mask;
+
+    @Option(names = {"--H3Mask"}, paramLabel = ":res@atom",
+      description = "Host anchor H3 selection mask (e.g., :6@C4).")
+    private String H3Mask;
+
   @Option(names = {"--l1Range"}, defaultValue = "3.5",
       description = "Cylinder diameter/height for G1 search.")
   private double l1Range;
@@ -359,8 +371,18 @@ public class FindRestraints extends AlgorithmsCommand {
 
   private void runBoreschMode(Molecule host, Molecule guest) {
 
+    if (H1Index == null && H1Mask != null) {
+      H1Index = resolveHostAnchorMask(host, H1Mask);
+    }
+    if (H2Index == null && H2Mask != null) {
+      H2Index = resolveHostAnchorMask(host, H2Mask);
+    }
+    if (H3Index == null && H3Mask != null) {
+      H3Index = resolveHostAnchorMask(host, H3Mask);
+    }
+
     if (H1Index == null || H2Index == null || H3Index == null) {
-      logger.severe("Boresch mode requires --H1 --H2 --H3 indices.");
+      logger.severe("Boresch mode requires --H1/--H2/--H3 indices or --H1Mask/--H2Mask/--H3Mask.");
       return;
     }
 
@@ -590,6 +612,40 @@ public class FindRestraints extends AlgorithmsCommand {
     for (Atom atom : mol.getAtomList()) {
       if (atom.getIndex() == index) return atom;
     }
+    return null;
+  }
+
+  private Integer resolveHostAnchorMask(Molecule host, String mask) {
+    if (mask == null) {
+      return null;
+    }
+    String trimmed = mask.trim();
+    if (trimmed.startsWith(":")) {
+      trimmed = trimmed.substring(1);
+    }
+    String[] parts = trimmed.split("@", 2);
+    if (parts.length != 2) {
+      logger.severe(format("Invalid mask '%s' (expected :res@atom).", mask));
+      return null;
+    }
+    String resPart = parts[0].trim();
+    String atomPart = parts[1].trim();
+    int resNum;
+    try {
+      resNum = Integer.parseInt(resPart.replaceAll("[^0-9-]", ""));
+    } catch (NumberFormatException e) {
+      logger.severe(format("Invalid residue number in mask '%s'.", mask));
+      return null;
+    }
+
+    for (Atom atom : host.getAtomList()) {
+      if (atom.getResidueNumber() == resNum && atom.getName().equalsIgnoreCase(atomPart)) {
+        logger.info(format("Resolved %s -> host atom index %d", mask, atom.getIndex()));
+        return atom.getIndex();
+      }
+    }
+
+    logger.severe(format("Mask '%s' did not match any host atom.", mask));
     return null;
   }
 

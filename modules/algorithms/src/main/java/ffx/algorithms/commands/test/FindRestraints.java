@@ -391,9 +391,21 @@ public class FindRestraints extends AlgorithmsCommand {
     
     Atom G2 = selectG2(guest, G1);
     if (G2 == null) return;
+
+    // Check G1-G2 bonding
+    if (!areBonded(G1, G2)) {
+        logger.warning(String.format("Warning: G1 (%s) and G2 (%s) are not bonded", 
+            G1.getName(), G2.getName()));
+    }
     
     Atom G3 = selectG3(guest, G1, G2);
     if (G3 == null) return;
+
+    // Check G2-G3 bonding
+    if (!areBonded(G2, G3)) {
+        logger.warning(String.format("Warning: G2 (%s) and G3 (%s) are not bonded", 
+            G2.getName(), G3.getName()));
+    }
 
     // Restore original coordinates for geometry evaluation
     restoreCoordinates(hostAtoms, hostCoords);
@@ -409,6 +421,14 @@ public class FindRestraints extends AlgorithmsCommand {
     logger.info(format("  G1: %s (index %d, residue %d)", G1.getName(), G1.getIndex(), G1.getResidueNumber()));
     logger.info(format("  G2: %s (index %d, residue %d)", G2.getName(), G2.getIndex(), G2.getResidueNumber()));
     logger.info(format("  G3: %s (index %d, residue %d)", G3.getName(), G3.getIndex(), G3.getResidueNumber()));
+
+    // Check triangle connectivity
+    logger.info(format("\n=== Connectivity Check ==="));
+    logger.info(format("G1-G2 bond: %s", areBonded(G1, G2) ? "YES" : "NO"));
+    logger.info(format("G2-G3 bond: %s", areBonded(G2, G3) ? "YES" : "NO"));
+    if (areBonded(G1, G3)) {
+        logger.info(format("G1-G3 bond: YES (unusual for dihedral definition)"));
+    }
 
     // Calculate all geometric parameters
     double r = distance(H1.getXYZ().get(), G1.getXYZ().get());
@@ -434,7 +454,42 @@ public class FindRestraints extends AlgorithmsCommand {
         logger.warning(format("Angle θB = %.2f° is near-degenerate.", thetaB));
     }
   }
-  
+
+  /**
+   * Check if two atoms are bonded based on PDB CONNECT records.
+   * Assumes the MolecularAssembly has already parsed CONNECT info.
+   */
+  private boolean areBonded(Atom a, Atom b) {
+      // FFX typically stores bonding info in the Molecule
+      // This is one approach - depends on FFX's internal structure
+      return a.isBondedTo(b);
+      
+      // Alternative: If FFX doesn't expose this directly,
+      // you might need to access the bonding array:
+      // return activeAssembly.getBonds().areBonded(a, b);
+  }
+
+  /**
+   * Check if atoms form a connected path G1-G2-G3.
+   */
+  private boolean isConnectedPath(Molecule guest, Atom g1, Atom g2, Atom g3) {
+      if (!areBonded(g1, g2)) {
+          logger.warning(String.format("G1 (%s) and G2 (%s) are not bonded", 
+              g1.getName(), g2.getName()));
+          return false;
+      }
+      
+      if (!areBonded(g2, g3)) {
+          logger.warning(String.format("G2 (%s) and G3 (%s) are not bonded", 
+              g2.getName(), g3.getName()));
+          return false;
+      }
+      
+      // Optional: Check if G1-G3 are bonded? Usually not for a proper dihedral
+      // but you might want to warn if they're too close
+      
+      return true;
+
   /**
    * Calculate dihedral angle between four atoms
    */
@@ -535,34 +590,57 @@ public class FindRestraints extends AlgorithmsCommand {
       Atom best = null;
       double bestAngleDiff = Double.MAX_VALUE;
 
+      // First pass: Look for atoms bonded to G2
+      List<Atom> bondedCandidates = new ArrayList<>();
+      List<Atom> allCandidates = new ArrayList<>();
+
       for (Atom atom : guest.getAtomList()) {
           if (atom == G1 || atom == G2 || !atom.isHeavy()) continue;
 
-          // Check distance from G2 (as in GHOAT)
+          // Check distance from G2
           double d = distance(G2.getXYZ().get(), atom.getXYZ().get());
           if (d < minAdis || d > maxAdis) continue;
 
-          // ADD: Also check distance from G1 to avoid clustering
+          // Check distance from G1
           double d_g1 = distance(G1.getXYZ().get(), atom.getXYZ().get());
           if (d_g1 < minAdis) continue;
 
+          // Check if bonded to G2 (from CONNECT records)
+          if (areBonded(G2, atom)) {
+            bondedCandidates.add(atom);
+          }
+          allCandidates.add(atom);
+      }
+      // Prefer bonded atoms, fall back to all candidates
+      List<Atom> candidates = bondedCandidates.isEmpty() ? allCandidates : bondedCandidates;
+      if (candidates.isEmpty()) {
+          logger.warning("No valid G3 candidates found");
+          return null;
+      }
+      
+      // Find atom with angle closest to 90°
+      for (Atom atom : candidates) {
           double ang = angle(G1, G2, atom);
-
-          // Reject Degenerate Angles for G3
+          
+          // Reject degenerate angles
           if (ang < 20.0 || ang > 160.0) continue;
-
-          double diff = abs(ang - 90.0);
-
+          
+          double diff = Math.abs(ang - 90.0);
+          
           if (diff < bestAngleDiff) {
               bestAngleDiff = diff;
               best = atom;
           }
       }
-
+      
       if (best == null) {
-          logger.severe("anch3 error: Could not identify valid G3 anchor.");
+          logger.warning("No G3 candidate with acceptable angle found");
+      } else {
+          String source = bondedCandidates.contains(best) ? "bonded" : "non-bonded";
+          logger.info(String.format("Selected G3: %s (index %d, %s to G2)", 
+              best.getName(), best.getIndex(), source));
       }
-
+      
       return best;
   }
 

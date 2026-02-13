@@ -625,27 +625,34 @@ public class FindRestraints extends AlgorithmsCommand {
     }
     String[] parts = trimmed.split("@", 2);
     if (parts.length != 2) {
-      logger.severe(format("Invalid mask '%s' (expected :res@atom).", mask));
+      logger.severe(format("Invalid mask '%s' (expected :N@atom for Nth occurrence).", mask));
       return null;
     }
-    String resPart = parts[0].trim();
+    String occurrencePart = parts[0].trim();
     String atomPart = parts[1].trim();
-    int resNum;
+    int occurrence;
     try {
-      resNum = Integer.parseInt(resPart.replaceAll("[^0-9-]", ""));
+      occurrence = Integer.parseInt(occurrencePart.replaceAll("[^0-9-]", ""));
     } catch (NumberFormatException e) {
-      logger.severe(format("Invalid residue number in mask '%s'.", mask));
+      logger.severe(format("Invalid occurrence number in mask '%s'.", mask));
       return null;
     }
 
+    // Find the Nth occurrence of the atom name
+    int count = 0;
     for (Atom atom : host.getAtomList()) {
-      if (atom.getResidueNumber() == resNum && atom.getName().equalsIgnoreCase(atomPart)) {
-        logger.info(format("Resolved %s -> host atom index %d", mask, atom.getIndex()));
-        return atom.getIndex();
+      if (atom.getName().equalsIgnoreCase(atomPart)) {
+        count++;
+        if (count == occurrence) {
+          logger.info(format("Resolved %s -> host atom index %d (residue %d)", 
+              mask, atom.getIndex(), atom.getResidueNumber()));
+          return atom.getIndex();
+        }
       }
     }
 
-    logger.severe(format("Mask '%s' did not match any host atom.", mask));
+    logger.severe(format("Mask '%s' did not match any host atom (found %d atoms named %s).", 
+        mask, count, atomPart));
     return null;
   }
 

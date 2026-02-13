@@ -460,13 +460,8 @@ public class FindRestraints extends AlgorithmsCommand {
    * Assumes the MolecularAssembly has already parsed CONNECT info.
    */
   private boolean areBonded(Atom a, Atom b) {
-      // FFX typically stores bonding info in the Molecule
-      // This is one approach - depends on FFX's internal structure
-      return a.isBondedTo(b);
-      
-      // Alternative: If FFX doesn't expose this directly,
-      // you might need to access the bonding array:
-      // return activeAssembly.getBonds().areBonded(a, b);
+      // Use the Atom bond list populated during PDB/CONNECT parsing.
+      return a.getBond(b) != null;
   }
 
   /**

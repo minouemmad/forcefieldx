@@ -261,28 +261,30 @@ public class FindRestraints extends AlgorithmsCommand {
   // ==================== BORESCH MODE ==============================
   // ================================================================
 
-  /**
-   * Calculate rotation matrix to align host to Z-axis
-   */
-  private double[][] getAlignmentRotationMatrix(Atom[] hostAtoms, double[] com) {
+    /**
+     * Calculate rotation matrix to align host to Z-axis.
+     *
+     * The returned matrix has rows = {x̂, ŷ, ẑ} so that r' = R * r.
+     */
+    private double[][] getAlignmentRotationMatrix(Atom[] hostAtoms, double[] com) {
       // Compute inertia tensor
       double[][] I = new double[3][3];
 
       for (Atom atom : hostAtoms) {
-          double m = atom.getMass();
-          double[] r = atom.getXYZ().get();
-          // Use coordinates relative to COM
-          double rx = r[0] - com[0];
-          double ry = r[1] - com[1];
-          double rz = r[2] - com[2];
+        double m = atom.getMass();
+        double[] r = atom.getXYZ().get();
+        // Use coordinates relative to COM
+        double rx = r[0] - com[0];
+        double ry = r[1] - com[1];
+        double rz = r[2] - com[2];
 
-          I[0][0] += m * (ry*ry + rz*rz);
-          I[1][1] += m * (rx*rx + rz*rz);
-          I[2][2] += m * (rx*rx + ry*ry);
+        I[0][0] += m * (ry * ry + rz * rz);
+        I[1][1] += m * (rx * rx + rz * rz);
+        I[2][2] += m * (rx * rx + ry * ry);
 
-          I[0][1] -= m * rx*ry;
-          I[0][2] -= m * rx*rz;
-          I[1][2] -= m * ry*rz;
+        I[0][1] -= m * rx * ry;
+        I[0][2] -= m * rx * rz;
+        I[1][2] -= m * ry * rz;
       }
 
       I[1][0] = I[0][1];
@@ -291,32 +293,69 @@ public class FindRestraints extends AlgorithmsCommand {
 
       // Diagonalize inertia tensor
       EigenDecomposition ed = new EigenDecomposition(new Array2DRowRealMatrix(I));
-      return ed.getV().getData();
-  }
+      double[] evals = ed.getRealEigenvalues();
+      double[][] evecs = ed.getV().getData(); // columns are eigenvectors
+
+      int zIndex = 0;
+      int xIndex = 0;
+      for (int i = 1; i < 3; i++) {
+        if (evals[i] > evals[zIndex]) {
+          zIndex = i;
+        }
+        if (evals[i] < evals[xIndex]) {
+          xIndex = i;
+        }
+      }
+      int yIndex = 3 - zIndex - xIndex;
+
+      double[] zHat = normalize(new double[]{evecs[0][zIndex], evecs[1][zIndex], evecs[2][zIndex]});
+      double[] xHat = normalize(new double[]{evecs[0][xIndex], evecs[1][xIndex], evecs[2][xIndex]});
+      double[] yHat = normalize(cross(zHat, xHat));
+      xHat = normalize(cross(yHat, zHat));
+
+      return new double[][]{xHat, yHat, zHat};
+    }
 
   /**
    * Apply translation and rotation transformation to atoms
    */
-  private void applyTransformation(Atom[] atoms, double[] com, double[][] rotationMatrix) {
+    private void applyTransformation(Atom[] atoms, double[] com, double[][] rotationMatrix) {
       for (Atom atom : atoms) {
-          double[] r = atom.getXYZ().get();
-          
-          // Translate to origin
-          double tx = r[0] - com[0];
-          double ty = r[1] - com[1];
-          double tz = r[2] - com[2];
-          
-          // Rotate
-          double[] rotated = new double[3];
-          for (int i = 0; i < 3; i++) {
-              rotated[i] = rotationMatrix[i][0]*tx + 
-                          rotationMatrix[i][1]*ty + 
-                          rotationMatrix[i][2]*tz;
-          }
-          
-          atom.setXYZ(rotated);  // Set the new coordinates
+        double[] r = atom.getXYZ().get();
+
+        // Translate to origin
+        double tx = r[0] - com[0];
+        double ty = r[1] - com[1];
+        double tz = r[2] - com[2];
+
+        // Rotate: r' = R * r
+        double[] rotated = new double[3];
+        for (int i = 0; i < 3; i++) {
+          rotated[i] = rotationMatrix[i][0] * tx
+              + rotationMatrix[i][1] * ty
+              + rotationMatrix[i][2] * tz;
+        }
+
+        atom.setXYZ(rotated);
       }
-  }
+    }
+
+    private static double[][] captureCoordinates(Atom[] atoms) {
+      double[][] coords = new double[atoms.length][3];
+      for (int i = 0; i < atoms.length; i++) {
+        double[] r = atoms[i].getXYZ().get();
+        coords[i][0] = r[0];
+        coords[i][1] = r[1];
+        coords[i][2] = r[2];
+      }
+      return coords;
+    }
+
+    private static void restoreCoordinates(Atom[] atoms, double[][] coords) {
+      for (int i = 0; i < atoms.length; i++) {
+        atoms[i].setXYZ(coords[i]);
+      }
+    }
 
   private void runBoreschMode(Molecule host, Molecule guest) {
 
@@ -336,14 +375,15 @@ public class FindRestraints extends AlgorithmsCommand {
 
     // Calculate principal axis from HOST ONLY
     Atom[] hostAtoms = host.getAtomList().toArray(new Atom[0]);
+    Atom[] guestAtoms = guest.getAtomList().toArray(new Atom[0]);
     double[] com = getCOM(hostAtoms);
     double[][] rotationMatrix = getAlignmentRotationMatrix(hostAtoms, com);
-    
-    // Apply transformation to ALL atoms (host + guest)
-    Atom[] guestAtoms = guest.getAtomList().toArray(new Atom[0]);
+
+    // Temporarily align to select anchors in a consistent frame
+    double[][] hostCoords = captureCoordinates(hostAtoms);
+    double[][] guestCoords = captureCoordinates(guestAtoms);
     applyTransformation(hostAtoms, com, rotationMatrix);
     applyTransformation(guestAtoms, com, rotationMatrix);
-
 
     Atom G1 = selectG1(guest);
     if (G1 == null) return;
@@ -353,6 +393,10 @@ public class FindRestraints extends AlgorithmsCommand {
     
     Atom G3 = selectG3(guest, G1, G2);
     if (G3 == null) return;
+
+    // Restore original coordinates for geometry evaluation
+    restoreCoordinates(hostAtoms, hostCoords);
+    restoreCoordinates(guestAtoms, guestCoords);
 
     // Calculate all geometric parameters
     double r = distance(H1.getXYZ().get(), G1.getXYZ().get());
@@ -521,6 +565,14 @@ public class FindRestraints extends AlgorithmsCommand {
 
   private static double[] subtract(double[] a, double[] b) {
     return new double[]{a[0] - b[0], a[1] - b[1], a[2] - b[2]};
+  }
+
+  private static double[] normalize(double[] v) {
+    double norm = sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+    if (norm == 0.0) {
+      return new double[]{0.0, 0.0, 0.0};
+    }
+    return new double[]{v[0] / norm, v[1] / norm, v[2] / norm};
   }
 
   private static double angle(Atom a, Atom b, Atom c) {

@@ -638,20 +638,20 @@ public class FindRestraints extends AlgorithmsCommand {
       return null;
     }
 
-    // Find the Nth occurrence of the atom name
+    // Find the Nth occurrence of atoms whose name starts with atomPart
     int count = 0;
     for (Atom atom : host.getAtomList()) {
-      if (atom.getName().equalsIgnoreCase(atomPart)) {
+      if (atom.getName().toUpperCase().startsWith(atomPart.toUpperCase())) {
         count++;
         if (count == occurrence) {
-          logger.info(format("Resolved %s -> host atom index %d (residue %d)", 
-              mask, atom.getIndex(), atom.getResidueNumber()));
+          logger.info(format("Resolved %s -> host atom '%s' index %d (residue %d)", 
+              mask, atom.getName(), atom.getIndex(), atom.getResidueNumber()));
           return atom.getIndex();
         }
       }
     }
 
-    logger.severe(format("Mask '%s' did not match any host atom (found %d atoms named %s).", 
+    logger.severe(format("Mask '%s' did not match any host atom (found %d atoms starting with %s).", 
         mask, count, atomPart));
     return null;
   }

@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -97,9 +97,9 @@ public class DiffractionFile {
 
     if (isExtension(filename, "mtz")) {
       diffractionFilter = new MTZFilter();
-    } else if (isExtension(filename, new String[] {"cif", "ent", "sf"})) {
+    } else if (isExtension(filename, "cif", "ent", "sf")) {
       diffractionFilter = new CIFFilter();
-    } else if (isExtension(filename, new String[] {"cns", "hkl"})) {
+    } else if (isExtension(filename, "cns", "hkl")) {
       diffractionFilter = new CNSFilter();
     } else {
       diffractionFilter = null;

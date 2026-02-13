@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -47,16 +47,18 @@ import ffx.crystal.HKL;
 import ffx.crystal.ReflectionList;
 import ffx.numerics.OptimizationInterface;
 import ffx.numerics.math.ComplexNumber;
-import ffx.xray.CrystalReciprocalSpace.SolventModel;
+import ffx.xray.solvent.SolventModel;
 
+import javax.annotation.Nullable;
 import java.util.logging.Logger;
 
 import static ffx.numerics.math.DoubleMath.dot;
-import static ffx.numerics.math.MatrixMath.mat3Mat3;
+import static ffx.numerics.math.MatrixMath.mat3Mat3Multiply;
 import static ffx.numerics.math.MatrixMath.mat3SymVec6;
-import static ffx.numerics.math.MatrixMath.transpose3;
+import static ffx.numerics.math.MatrixMath.mat3Transpose;
 import static ffx.numerics.math.MatrixMath.vec3Mat3;
 import static java.lang.Double.isNaN;
+import static java.lang.String.format;
 import static java.util.Arrays.fill;
 import static org.apache.commons.math3.util.FastMath.PI;
 import static org.apache.commons.math3.util.FastMath.abs;
@@ -65,7 +67,6 @@ import static org.apache.commons.math3.util.FastMath.exp;
 /**
  * Fit bulk solvent and aniso B scaling terms to correct calculated structure factors against data
  *
- * @author Timothy D. Fenn
  * @see <a href="http://dx.doi.org/10.1107/S0907444905007894" target="_blank"> P. V. Afonine, R. W.
  * Grosse-Kunstleve and P. D. Adams, Acta Cryst. (2005). D61, 850-855</a>
  * @see <a href="http://dx.doi.org/10.1107/S0021889802008580" target="_blank"> R. W.
@@ -74,18 +75,24 @@ import static org.apache.commons.math3.util.FastMath.exp;
  * Nicholls, J. Comp. Chem. (2001). 22, 608-640</a>
  * @see <a href="http://dx.doi.org/10.1006/jmbi.1994.1633" target="_blank"> J. S. Jiang, A. T.
  * Brunger, JMB (1994) 243, 100-115.</a>
+ *
+ * @author Timothy D. Fenn
  * @since 1.0
  */
 public class ScaleBulkEnergy implements OptimizationInterface {
 
   private static final Logger logger = Logger.getLogger(ScaleBulkEnergy.class.getName());
   private static final double twopi2 = 2.0 * PI * PI;
-  private static final double[][] u11 = {{1.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}};
-  private static final double[][] u22 = {{0.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 0.0}};
-  private static final double[][] u33 = {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 1.0}};
-  private static final double[][] u12 = {{0.0, 1.0, 0.0}, {1.0, 0.0, 0.0}, {0.0, 0.0, 0.0}};
-  private static final double[][] u13 = {{0.0, 0.0, 1.0}, {0.0, 0.0, 0.0}, {1.0, 0.0, 0.0}};
-  private static final double[][] u23 = {{0.0, 0.0, 0.0}, {0.0, 0.0, 1.0}, {0.0, 1.0, 0.0}};
+  private static final double[] v000 = {0.0, 0.0, 0.0};
+  private static final double[] v100 = {1.0, 0.0, 0.0};
+  private static final double[] v010 = {0.0, 1.0, 0.0};
+  private static final double[] v001 = {0.0, 0.0, 1.0};
+  private static final double[][] u11 = {v100, v000, v000};
+  private static final double[][] u22 = {v000, v010, v000};
+  private static final double[][] u33 = {v000, v000, v001};
+  private static final double[][] u12 = {v010, v100, v000};
+  private static final double[][] u13 = {v001, v000, v100};
+  private static final double[][] u23 = {v000, v001, v010};
   private final double[][] recipt;
   private final double[][] j11;
   private final double[][] j22;
@@ -106,7 +113,8 @@ public class ScaleBulkEnergy implements OptimizationInterface {
   private final ScaleBulkEnergyRegion scaleBulkEnergyRegion;
   private double[] optimizationScaling = null;
   private double totalEnergy;
-
+  private double R;
+  private double Rfree;
 
   /**
    * Constructor for ScaleBulkEnergy.
@@ -116,11 +124,8 @@ public class ScaleBulkEnergy implements OptimizationInterface {
    * @param n              an int.
    * @param parallelTeam   the ParallelTeam to execute the ScaleBulkEnergy.
    */
-  ScaleBulkEnergy(
-      ReflectionList reflectionList,
-      DiffractionRefinementData refinementData,
-      int n,
-      ParallelTeam parallelTeam) {
+  ScaleBulkEnergy(ReflectionList reflectionList, DiffractionRefinementData refinementData,
+      int n, ParallelTeam parallelTeam) {
     this.reflectionList = reflectionList;
     this.crystal = reflectionList.crystal;
     this.refinementData = refinementData;
@@ -130,13 +135,13 @@ public class ScaleBulkEnergy implements OptimizationInterface {
     this.n = n;
     this.solventN = n - refinementData.nScale;
 
-    recipt = transpose3(crystal.A);
-    j11 = mat3Mat3(mat3Mat3(crystal.A, u11), recipt);
-    j22 = mat3Mat3(mat3Mat3(crystal.A, u22), recipt);
-    j33 = mat3Mat3(mat3Mat3(crystal.A, u33), recipt);
-    j12 = mat3Mat3(mat3Mat3(crystal.A, u12), recipt);
-    j13 = mat3Mat3(mat3Mat3(crystal.A, u13), recipt);
-    j23 = mat3Mat3(mat3Mat3(crystal.A, u23), recipt);
+    recipt = mat3Transpose(crystal.A);
+    j11 = mat3Mat3Multiply(mat3Mat3Multiply(crystal.A, u11), recipt);
+    j22 = mat3Mat3Multiply(mat3Mat3Multiply(crystal.A, u22), recipt);
+    j33 = mat3Mat3Multiply(mat3Mat3Multiply(crystal.A, u33), recipt);
+    j12 = mat3Mat3Multiply(mat3Mat3Multiply(crystal.A, u12), recipt);
+    j13 = mat3Mat3Multiply(mat3Mat3Multiply(crystal.A, u13), recipt);
+    j23 = mat3Mat3Multiply(mat3Mat3Multiply(crystal.A, u23), recipt);
 
     int threadCount = parallelTeam.getThreadCount();
     this.parallelTeam = parallelTeam;
@@ -172,6 +177,13 @@ public class ScaleBulkEnergy implements OptimizationInterface {
     double sum = target(x, g, true, false);
     scaleCoordinatesAndGradient(x, g);
     return sum;
+  }
+
+  public double getR() {
+    return R;
+  }
+  public double getRfree() {
+    return Rfree;
   }
 
   /**
@@ -210,7 +222,7 @@ public class ScaleBulkEnergy implements OptimizationInterface {
    * {@inheritDoc}
    */
   @Override
-  public void setScaling(double[] scaling) {
+  public void setScaling(@Nullable double[] scaling) {
     if (scaling != null && scaling.length == n) {
       optimizationScaling = scaling;
     } else {
@@ -227,21 +239,20 @@ public class ScaleBulkEnergy implements OptimizationInterface {
   }
 
   /**
-   * target
+   * ScaleBulk target energy.
    *
-   * @param x        an array of double.
-   * @param g        an array of double.
-   * @param gradient a boolean.
-   * @param print    a boolean.
-   * @return a double.
+   * @param x        The parameter array.
+   * @param g        The gradient of the parameter array.
+   * @param gradient If true, compute the gradient.
+   * @param print    If true, enable verbose printing.
+   * @return The target energy.
    */
   public double target(double[] x, double[] g, boolean gradient, boolean print) {
-
     try {
       scaleBulkEnergyRegion.init(x, g, gradient);
       parallelTeam.execute(scaleBulkEnergyRegion);
     } catch (Exception e) {
-      logger.info(e.toString());
+      logger.severe(e.toString());
     }
 
     double sum = scaleBulkEnergyRegion.sum.get();
@@ -250,6 +261,10 @@ public class ScaleBulkEnergy implements OptimizationInterface {
     double rf = scaleBulkEnergyRegion.rf.get();
     double rfree = scaleBulkEnergyRegion.rFree.get();
     double rfreef = scaleBulkEnergyRegion.rFreeF.get();
+
+    R = (r / rf) * 100.0;
+    Rfree = (rfree / rfreef) * 100.0;
+    totalEnergy = sum / sumfo;
 
     if (gradient) {
       double isumfo = 1.0 / sumfo;
@@ -260,24 +275,23 @@ public class ScaleBulkEnergy implements OptimizationInterface {
 
     if (print) {
       StringBuilder sb = new StringBuilder("\n");
-      sb.append("Bulk solvent and scale fit\n");
-      sb.append(String.format("   residual:  %8.3f\n", sum / sumfo));
-      sb.append(
-          String.format(
-              "   R:  %8.3f  Rfree:  %8.3f\n", (r / rf) * 100.0, (rfree / rfreef) * 100.0));
-      sb.append("x: ");
+      sb.append(" Bulk solvent and scale fit\n");
+      sb.append(format("  Residual:  %10.5f  R:  %8.3f  Rfree:  %8.3f\n", totalEnergy, R, Rfree));
+      sb.append("  Params:   ");
       for (double x1 : x) {
-        sb.append(String.format("%8g ", x1));
+        sb.append(format("%16.8f ", x1));
       }
-      sb.append("\ng: ");
-      for (double v : g) {
-        sb.append(String.format("%8g ", v));
+      if (gradient) {
+        sb.append("\n  Gradient: ");
+        for (double v : g) {
+          sb.append(format("%16.8f ", v));
+        }
       }
       sb.append("\n");
       logger.info(sb.toString());
     }
-    totalEnergy = sum / sumfo;
-    return sum / sumfo;
+
+    return totalEnergy;
   }
 
   private class ScaleBulkEnergyRegion extends ParallelRegion {
@@ -364,7 +378,7 @@ public class ScaleBulkEnergy implements OptimizationInterface {
 
       // Generate Ustar.
       mat3SymVec6(crystal.A, modelB, resM);
-      mat3Mat3(resM, recipt, uStar);
+      mat3Mat3Multiply(resM, recipt, uStar);
 
       if (gradient) {
         if (grad == null) {
@@ -394,7 +408,7 @@ public class ScaleBulkEnergy implements OptimizationInterface {
       private double lsumfo;
 
       ScaleBulkEnergyLoop() {
-        lgrad = new double[g.length];
+        lgrad = new double[n];
       }
 
       @Override
@@ -405,8 +419,10 @@ public class ScaleBulkEnergy implements OptimizationInterface {
         rFreeF.addAndGet(lrfreef);
         sum.addAndGet(lsum);
         sumFo.addAndGet(lsumfo);
-        for (int i = 0; i < lgrad.length; i++) {
-          grad.getAndAdd(i, lgrad[i]);
+        if (gradient) {
+          for (int i = 0; i < lgrad.length; i++) {
+            grad.getAndAdd(i, lgrad[i]);
+          }
         }
       }
 
@@ -435,7 +451,7 @@ public class ScaleBulkEnergy implements OptimizationInterface {
           refinementData.getFcIP(i, fcc);
           refinementData.getFsIP(i, fsc);
           fct.copy(fcc);
-          if (refinementData.crystalReciprocalSpaceFs.solventModel != SolventModel.NONE) {
+          if (refinementData.crystalReciprocalSpaceFs.getSolventModel() != SolventModel.NONE) {
             resc.copy(fsc);
             resc.timesIP(ksExpBS);
             fct.plusIP(resc);
@@ -471,8 +487,7 @@ public class ScaleBulkEnergy implements OptimizationInterface {
             double dfm = 0.25 * akfct * dr;
             // bulk solvent - common derivative element
             double afsc = fsc.abs();
-            double dfb =
-                expBS * (fcc.re() * fsc.re() + fcc.im() * fsc.im() + ksExpBS * afsc * afsc);
+            double dfb = expBS * (fcc.re() * fsc.re() + fcc.im() * fsc.im() + ksExpBS * afsc * afsc);
 
             // modelK derivative
             lgrad[0] += dfm;

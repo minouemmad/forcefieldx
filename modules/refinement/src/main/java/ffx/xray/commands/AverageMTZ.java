@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -81,6 +81,7 @@ public class AverageMTZ extends AlgorithmsCommand {
 
   /**
    * AverageMTZ constructor that sets the command line arguments.
+   *
    * @param args Command line arguments.
    */
   public AverageMTZ(String[] args) {
@@ -89,6 +90,7 @@ public class AverageMTZ extends AlgorithmsCommand {
 
   /**
    * AverageMTZ constructor.
+   *
    * @param binding The Binding to use.
    */
   public AverageMTZ(FFXBinding binding) {
@@ -116,13 +118,13 @@ public class AverageMTZ extends AlgorithmsCommand {
 
     File file1 = new File(mtzfile1);
     if (!file1.exists()) {
-      logger.info("File: " + mtzfile1 + " not found!");
+      logger.info(mtzfile1 + " not found.");
       return this;
     }
 
     File file2 = new File(mtzfile2);
     if (!file2.exists()) {
-      logger.info("File: " + mtzfile2 + " not found!");
+      logger.info(mtzfile2 + " not found");
       return this;
     }
 

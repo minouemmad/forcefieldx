@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -380,9 +380,9 @@ public class AlchemicalParameters {
         d2lPowPol *= (polLambdaScale * polLambdaScale);
       }
     }
-    logger.info("PermLambda: " + lPowPerm + " PolLambda: " + lPowPol);
-    logger.info("permLambdaExponent = " + permLambdaExponent + " polLambdaExponent = " + polLambdaExponent);
-    logger.info("permlambdaalpha = " + permLambdaAlpha);
+    logger.fine("PermLambda: " + lPowPerm + " PolLambda: " + lPowPol);
+    logger.fine("permLambdaExponent = " + permLambdaExponent + " polLambdaExponent = " + polLambdaExponent);
+    logger.fine("permlambdaalpha = " + permLambdaAlpha);
   }
 
   /**

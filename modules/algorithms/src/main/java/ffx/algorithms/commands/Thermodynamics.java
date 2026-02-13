@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -276,8 +276,7 @@ public class Thermodynamics extends AlgorithmsCommand {
     multiDynamicsOptions.distribute(topologies, potential, algorithmFunctions, rank, size);
 
     if (algorithm == ThermodynamicsAlgorithm.OST) {
-      orthogonalSpaceTempering =
-          ostOptions.constructOST(potential, lambdaRestart, histogramRestart, topologies[0],
+      orthogonalSpaceTempering = ostOptions.constructOST(potential, lambdaRestart, histogramRestart, topologies[0],
               additionalProperties, dynamicsOptions, thermodynamicsOptions, lambdaParticleOptions,
               algorithmListener, !multiDynamicsOptions.isSynchronous());
       if (!lamExists) {
@@ -287,7 +286,7 @@ public class Thermodynamics extends AlgorithmsCommand {
       CrystalPotential ostPotential = ostOptions.applyAllOSTOptions(orthogonalSpaceTempering, topologies[0],
           dynamicsOptions, barostatOptions);
       if (ostOptions.isMonteCarlo()) {
-        MonteCarloOST mcOST = ostOptions.setupMCOST(orthogonalSpaceTempering, topologies,
+        MonteCarloOST mcOST = ostOptions.setupMCOST(orthogonalSpaceTempering, topologies, ostPotential,
             dynamicsOptions, thermodynamicsOptions, verbose, dyn, algorithmListener);
         ostOptions.beginMCOST(mcOST, dynamicsOptions, thermodynamicsOptions);
       } else {

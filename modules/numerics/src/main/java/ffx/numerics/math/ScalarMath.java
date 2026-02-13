@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -181,11 +181,12 @@ public class ScalarMath {
   }
 
   /**
-   * quadForm
+   * quadForm returns the scalar result of v * M * v^t
+   * where v is 3 member vector and M is a 3x3 matrix.
    *
-   * @param v   an array of double.
-   * @param mat an array of double.
-   * @return a double.
+   * @param v   a 1x3 vector.
+   * @param mat a 3x3 matrix.
+   * @return the result of v * M * v^t.
    */
   public static double quadForm(double[] v, double[][] mat) {
     return (v[0] * (v[0] * mat[0][0] + 2 * (v[1] * mat[0][1] + v[2] * mat[0][2]))

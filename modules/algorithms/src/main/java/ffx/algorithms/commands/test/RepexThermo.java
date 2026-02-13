@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -250,7 +250,7 @@ public class RepexThermo extends Thermodynamics {
           dynamicsOptions, barostatOptions);
 
       if (isMC) {
-        mcOST = ostOptions.setupMCOST(orthogonalSpaceTempering, topologies, dynamicsOptions, thermodynamicsOptions,
+        mcOST = ostOptions.setupMCOST(orthogonalSpaceTempering, topologies, finalPotential, dynamicsOptions, thermodynamicsOptions,
             verbose, null, algorithmListener);
         md = mcOST.getMD();
       } else {

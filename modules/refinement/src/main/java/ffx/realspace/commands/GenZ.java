@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -150,6 +150,10 @@ public class GenZ extends AlgorithmsCommand {
       return this;
     }
 
+    // Atomic clashes are expected and will be handled using direct induced dipoles.
+    System.setProperty("sor-scf-fallback", "false");
+    System.setProperty("direct-scf-fallback", "true");
+
     double titrationPH = manyBodyOptions.getTitrationPH();
     double inclusionCutoff = manyBodyOptions.getInclusionCutoff();
     int mutatingResidue = manyBodyOptions.getInterestedResidue();
@@ -238,16 +242,15 @@ public class GenZ extends AlgorithmsCommand {
       // Create new MolecularAssembly with additional protons and update the ForceFieldEnergy
       titrationManyBody = new TitrationManyBody(filename, activeAssembly.getForceField(),
           resNumberList, titrationPH, manyBodyOptions);
-      MolecularAssembly protonatedAssembly = titrationManyBody.getProtonatedAssembly();
-      setActiveAssembly(protonatedAssembly);
-      potentialEnergy = protonatedAssembly.getPotentialEnergy();
+      activeAssembly = titrationManyBody.getProtonatedAssembly();
+      potentialEnergy = activeAssembly.getPotentialEnergy();
     }
     molecularAssemblies = new MolecularAssembly[]{activeAssembly};
     refinementEnergy = realSpaceOptions.toRealSpaceEnergy(filenames, molecularAssemblies);
 
     if (lambdaTerm) {
       alchemicalOptions.setFirstSystemAlchemistry(activeAssembly);
-      LambdaInterface lambdaInterface = (LambdaInterface) potentialEnergy;
+      LambdaInterface lambdaInterface = potentialEnergy;
       double lambda = alchemicalOptions.getInitialLambda();
       logger.info(format(" Setting ManyBody softcore lambda to: %5.3f", lambda));
       lambdaInterface.setLambda(lambda);

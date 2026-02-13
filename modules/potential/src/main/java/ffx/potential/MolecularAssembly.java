@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -191,7 +191,8 @@ public class MolecularAssembly extends MSGroup {
   }
 
   /**
-   * Set the alternate location.
+   * Set the alternate location label for the MolecularAssembly.
+   * Atomic alternate locations are not modified.
    *
    * @param alternateLocation The alternate location.
    */
@@ -200,12 +201,39 @@ public class MolecularAssembly extends MSGroup {
   }
 
   /**
-   * Get the alternate location.
+   * Get the alternate location label for the MolecularAssembly.
    *
    * @return The alternate location.
    */
   public Character getAlternateLocation() {
     return alternateLocation;
+  }
+
+  /**
+   * Set the occupancy for all atoms of the Assembly.
+   *
+   * @param occupancy the occupancy to use.
+   */
+  public void setOccupancy(double occupancy) {
+    List<Atom> atoms = getAtomList();
+    for (Atom atom : atoms) {
+      atom.setOccupancy(occupancy);
+    }
+  }
+
+  /**
+   * Set the occupancy for all atoms of the Assembly that have the given alternate location.
+   *
+   * @param occupancy         the occupancy to use.
+   * @param alternateLocation the alternate location to filter by.
+   */
+  public void setOccupancy(double occupancy, Character alternateLocation) {
+    List<Atom> atoms = getAtomList();
+    for (Atom atom : atoms) {
+      if (atom.getAltLoc().equals(alternateLocation)) {
+        atom.setOccupancy(occupancy);
+      }
+    }
   }
 
   /**
@@ -915,7 +943,6 @@ public class MolecularAssembly extends MSGroup {
     for (int i = 0; i < atoms.size(); i++) {
       atomArray[i].setXyzIndex(i + 1);
     }
-
     return atomArray;
   }
 
@@ -1043,6 +1070,21 @@ public class MolecularAssembly extends MSGroup {
       totalCharge += charge;
     }
     return totalCharge;
+  }
+
+  /**
+   * Check if this Assembly contains Deuterium.
+   *
+   * @return True if one or more atoms is deuterium.
+   */
+  public boolean hasDeuterium() {
+    Atom[] atoms = getAtomArray();
+    for (Atom atom : atoms) {
+      if (atom.isDeuterium()) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -1383,33 +1425,34 @@ public class MolecularAssembly extends MSGroup {
   }
 
   /**
-   * getNodeList
+   * A list that includes residues, molecules, water and ions.
    *
-   * @return a {@link java.util.List} object.
+   * @return a {@link java.util.List} of residues, molecules, water and ions.
    */
   public List<MSNode> getNodeList() {
-    List<MSNode> residues = new ArrayList<>();
-    ListIterator<MSNode> li, lj;
-    MSNode o;
-    Polymer c;
-    for (li = getAtomNodeList().listIterator(); li.hasNext(); ) {
-      o = li.next();
-      if (o instanceof Polymer) {
-        c = (Polymer) o;
-        for (lj = c.getAtomNodeList().listIterator(); lj.hasNext(); ) {
-          o = lj.next();
-          if (o instanceof Residue) {
-            residues.add(o);
-          }
+    return getNodeList(false);
+  }
+
+  /**
+   * A list that includes residues, molecules, water and ions.
+   *
+   * @param ignorePolymers If true, the list will not include residues.
+   * @return a {@link java.util.List} of residues, molecules, water and ions.
+   */
+  public List<MSNode> getNodeList(boolean ignorePolymers) {
+    List<MSNode> nodeList = new ArrayList<>();
+    if (!ignorePolymers) {
+      Polymer[] polymers = getChains();
+      if (polymers != null) {
+        for (Polymer polymer : polymers) {
+          nodeList.addAll(polymer.getResidues());
         }
       }
     }
-
-    residues.addAll(ions.getChildList());
-    residues.addAll(water.getChildList());
-    residues.addAll(molecules.getChildList());
-
-    return residues;
+    nodeList.addAll(ions.getChildList());
+    nodeList.addAll(water.getChildList());
+    nodeList.addAll(molecules.getChildList());
+    return nodeList;
   }
 
   /**
@@ -2042,6 +2085,7 @@ public class MolecularAssembly extends MSGroup {
    * by 2 AMU.
    */
   private void applyHeavyHydrogen() {
+    logger.info(" Setting Hydrogen Mass to 3 AMU");
     List<Bond> bonds = getBondList();
     for (Bond bond : bonds) {
       Atom a1 = bond.getAtom(0);
@@ -2321,6 +2365,26 @@ public class MolecularAssembly extends MSGroup {
     wireframe.setCapability(Shape3D.ALLOW_APPEARANCE_READ);
     wireframe.setCapability(Shape3D.ALLOW_LOCAL_TO_VWORLD_READ);
     return wireframe;
+  }
+
+  /**
+   * Return the residue given a polymer ID and residue ID.
+   *
+   * @param polymerID The polymer ID.
+   * @param resID     The residue ID.
+   * @return The requested Residue or null if it can't be found.
+   */
+  public Residue getResidue(int polymerID, int resID) {
+    Polymer[] polymers = getChains();
+    if (polymers == null || polymers.length <= polymerID) {
+      return null;
+    }
+    Polymer polymer = polymers[polymerID];
+    List<Residue> residues = polymer.getResidues();
+    if (residues == null || residues.size() <= resID) {
+      return null;
+    }
+    return residues.get(resID);
   }
 
   /**

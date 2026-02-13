@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -53,6 +53,7 @@ import jdk.incubator.vector.VectorShuffle;
 import jdk.incubator.vector.VectorSpecies;
 
 import static java.lang.String.format;
+import static java.lang.System.arraycopy;
 import static java.util.Objects.requireNonNullElseGet;
 
 /**
@@ -136,7 +137,7 @@ public class Complex3DParallel {
   private final Complex2D[] fftXY;
   /**
    * The 1D FFTs for each thread to compute FFTs along the Z-dimension.
-   * Each thread operates one YZ-plane at a time to complete nY FFTs.
+   * Each thread operates on one YZ-plane at a time to complete nY FFTs.
    */
   private final Complex[] fftZ;
   /**
@@ -287,7 +288,7 @@ public class Complex3DParallel {
         dataLayout1D = DataLayout1D.BLOCKED;
         dataLayout2D = DataLayout2D.BLOCKED_X;
         // Transforms along the Z-axis will be repacked into 1D blocked format.
-        internalImZ = nZ * nY;
+        internalImZ = nY * nZ;
         trNextY = 1;
         trNextZ = nY;
         trNextX = 2 * nY * nZ;
@@ -332,25 +333,26 @@ public class Complex3DParallel {
     threadCount = parallelTeam.getThreadCount();
     schedule = requireNonNullElseGet(integerSchedule, IntegerSchedule::fixed);
 
-    // Do not use SIMD by default for now.
-    useSIMD = false;
-    String simd = System.getProperty("fft.useSIMD", Boolean.toString(useSIMD));
+    // Use SIMD by default.
+    useSIMD = true;
+    String simd = System.getProperty("fft.simd", Boolean.toString(useSIMD));
     try {
       useSIMD = Boolean.parseBoolean(simd);
     } catch (Exception e) {
       useSIMD = false;
     }
 
-    // Do not pack FFTs by default for now.
-    packFFTs = false;
-    String pack = System.getProperty("fft.packFFTs", Boolean.toString(packFFTs));
+    // Pack FFTs by default.
+    packFFTs = true;
+    String pack = System.getProperty("fft.pack", Boolean.toString(packFFTs));
     try {
       packFFTs = Boolean.parseBoolean(pack);
     } catch (Exception e) {
       packFFTs = false;
     }
 
-    String localTranspose = System.getProperty("fft.localZTranspose", "true");
+    // A 128^3 matrix shows the best performance doing the full 3D transpose all at once.
+    String localTranspose = System.getProperty("fft.localZTranspose", "false");
     boolean local;
     try {
       local = Boolean.parseBoolean(localTranspose);
@@ -737,15 +739,13 @@ public class Complex3DParallel {
           double fftxy = fftXYLoop[i].getTime() * 1e-9;
           double ziz = fftZIZLoop[i].getTime() * 1e-9;
           double ifftxy = ifftXYLoop[i].getTime() * 1e-9;
-          String s = format("  Thread %3d: FFTXY=%8.6f, FFTZIZ=%8.6f, IFFTXY=%8.6f\n",
-              i, fftxy, ziz, ifftxy);
+          String s = format("  Thread %3d: FFTXY=%8.6f, FFTZIZ=%8.6f, IFFTXY=%8.6f\n", i, fftxy, ziz, ifftxy);
           sb.append(s);
           xysum += fftxy;
           zizsum += ziz;
           ixysum += ifftxy;
         }
-        String s = format("  Sum       : FFTXY=%8.6f, FFTZIZ=%8.6f, IFFTXY=%8.6f\n",
-            xysum, zizsum, ixysum);
+        String s = format("  Sum       : FFTXY=%8.6f, FFTZIZ=%8.6f, IFFTXY=%8.6f\n", xysum, zizsum, ixysum);
         sb.append(s);
       } else {
         double xysum = 0.0;
@@ -882,9 +882,9 @@ public class Complex3DParallel {
       if (localZTranspose) {
         for (int x = lb; x <= ub; x++) {
           int inputOffset = x * nextX;
-          transpose(input, inputOffset, work, 0);
+          transpose(input, inputOffset, work);
           localFFTZ.fft(work, 0, ii);
-          unTranspose(input, inputOffset, work, 0);
+          unTranspose(input, inputOffset, work);
         }
       } else {
         for (int x = lb; x <= ub; x++) {
@@ -935,9 +935,9 @@ public class Complex3DParallel {
       if (localZTranspose) {
         for (int x = lb; x <= ub; x++) {
           int inputOffset = x * nextX;
-          transpose(input, inputOffset, work, 0);
+          transpose(input, inputOffset, work);
           localFFTZ.ifft(work, 0, ii);
-          unTranspose(input, inputOffset, work, 0);
+          unTranspose(input, inputOffset, work);
         }
       } else {
         for (int x = lb; x <= ub; x++) {
@@ -988,12 +988,12 @@ public class Complex3DParallel {
       if (localZTranspose) {
         for (int x = lb; x <= ub; x++) {
           int inputOffset = x * nextX;
-          transpose(input, inputOffset, work, 0);
+          transpose(input, inputOffset, work);
           localFFTZ.fft(work, 0, ii);
           int recipOffset = x * nY * nZ;
           recipConv(recipOffset, work, 0);
           localFFTZ.ifft(work, 0, ii);
-          unTranspose(input, inputOffset, work, 0);
+          unTranspose(input, inputOffset, work);
         }
       } else {
         for (int x = lb; x <= ub; x++) {
@@ -1033,8 +1033,8 @@ public class Complex3DParallel {
    * real[x, y, z] = input[x*nextX + y*nextY + z*nextZ]
    * imag[x, y, z] = input[x*nextX + y*nextY + z*nextZ + im]
    * The output data order is Y,Z,X (Y varies most quickly)
-   * real[x, y, z] = input[y*trNextY + z*trNextZ + x*trNextX]
-   * imag[x, y, z] = input[y*trNextY + z*trNextZ + x*trNextX + im]
+   * real[x, y, z] = work3D[y*trNextY + z*trNextZ + x*trNextX]
+   * imag[x, y, z] = work3D[y*trNextY + z*trNextZ + x*trNextX + im]
    */
   private class TransposeLoop extends IntegerForLoop {
 
@@ -1042,17 +1042,66 @@ public class Complex3DParallel {
 
     @Override
     public void run(final int lb, final int ub) {
-      for (int x = lb; x <= ub; x++) {
+      if (internalImZ == 1) {
         for (int z = 0; z < nZ; z++) {
-          int inputOffset = x * nextX + z * nextZ;
-          int workOffset = x * trNextX + z * trNextZ;
-          for (int y = 0; y < nY; y++) {
-            int inputIndex = inputOffset + y * nextY;
-            double real = input[inputIndex];
-            double imag = input[inputIndex + im];
-            int workIndex = workOffset + y * trNextY;
-            work3D[workIndex] = real;
-            work3D[workIndex + internalImZ] = imag;
+          for (int x = lb; x <= ub; x++) {
+            int y = 0;
+            int i = 0;
+            int iZX = x * nextX + z * nextZ;
+            int trZX = x * trNextX + z * trNextZ;
+            for (; y < nY - 3; y += 4, i += 8) {
+              int i1 = iZX + y * nextY;
+              int i2 = i1 + nextY;
+              int i3 = i2 + nextY;
+              int i4 = i3 + nextY;
+              int dest = trZX + y * trNextY;
+              work3D[dest] = input[i1];
+              work3D[dest + 1] = input[i1 + im];
+              work3D[dest + 2] = input[i2];
+              work3D[dest + 3] = input[i2 + im];
+              work3D[dest + 4] = input[i3];
+              work3D[dest + 5] = input[i3 + im];
+              work3D[dest + 6] = input[i4];
+              work3D[dest + 7] = input[i4 + im];
+            }
+            for (; y < nY; y++, i += 2) {
+              int i1 = iZX + y * nextY;
+              int dest = trZX + y * trNextY;
+              work3D[dest] = input[i1];
+              work3D[dest + 1] = input[i1 + im];
+            }
+          }
+        }
+      } else {
+        for (int z = 0; z < nZ; z++) {
+          for (int x = lb; x <= ub; x++) {
+            int y = 0;
+            int i = 0;
+            int iZX = x * nextX + z * nextZ;
+            int trZX = x * trNextX + z * trNextZ;
+            for (; y < nY - 3; y += 4, i += 4) {
+              int i1 = iZX + y * nextY;
+              int i2 = i1 + nextY;
+              int i3 = i2 + nextY;
+              int i4 = i3 + nextY;
+              // Real values
+              int destPos = trZX + y * trNextY;
+              work3D[destPos] = input[i1];
+              work3D[destPos + 1] = input[i2];
+              work3D[destPos + 2] = input[i3];
+              work3D[destPos + 3] = input[i4];
+              // Imaginary values
+              work3D[destPos + internalImZ] = input[i1 + im];
+              work3D[destPos + 1 + internalImZ] = input[i2 + im];
+              work3D[destPos + 2 + internalImZ] = input[i3 + im];
+              work3D[destPos + 3 + internalImZ] = input[i4 + im];
+            }
+            for (; y < nY; y++, i++) {
+              int i1 = iZX + y * nextY;
+              int destPos = trZX + y * trNextY;
+              work3D[destPos] = input[i1];
+              work3D[destPos + internalImZ] = input[i1 + im];
+            }
           }
         }
       }
@@ -1085,8 +1134,8 @@ public class Complex3DParallel {
 
   /**
    * The transposed input data order is Y,Z,X (Y varies most quickly)
-   * real[x, y, z] = input[y*trNextY + z*trNextZ + x*trNextX]
-   * imag[x, y, z] = input[y*trNextY + z*trNextZ + x*trNextX + im]
+   * real[x, y, z] = work3D[y*trNextY + z*trNextZ + x*trNextX]
+   * imag[x, y, z] = work3D[y*trNextY + z*trNextZ + x*trNextX + im]
    * <p>
    * The output data order is X,Y,Z (X varies most quickly)
    * real[x, y, z] = input[x*nextX + y*nextY + z*nextZ]
@@ -1098,17 +1147,37 @@ public class Complex3DParallel {
 
     @Override
     public void run(final int lb, final int ub) {
-      for (int x = 0; x < nX; x++) {
-        for (int y = 0; y < nY; y++) {
-          int workOffset = x * trNextX + y * trNextY;
-          int inputOffset = x * nextX + y * nextY;
-          for (int z = lb; z <= ub; z++) {
-            int workIndex = workOffset + z * trNextZ;
-            double real = work3D[workIndex];
-            double imag = work3D[workIndex + internalImZ];
-            int inputIndex = inputOffset + z * nextZ;
-            input[inputIndex] = real;
-            input[inputIndex + im] = imag;
+      // The loop order Z -> X -> Y shows the best performance for 128^3 matrix.
+      for (int z = lb; z <= ub; z++) {
+        int trZ = z * trNextZ;
+        int iZ = z * nextZ;
+        for (int x = 0; x < nX; x++) {
+          int trZX = trZ + x * trNextX;
+          int iZX = iZ + x * nextX;
+          int y = 0;
+          for (; y < nY - 3; y += 4) {
+            int w1 = y * trNextY + trZX;
+            int w2 = w1 + trNextY;
+            int w3 = w2 + trNextY;
+            int w4 = w3 + trNextY;
+            int i1 = y * nextY + iZX;
+            int i2 = i1 + nextY;
+            int i3 = i2 + nextY;
+            int i4 = i3 + nextY;
+            input[i1] = work3D[w1];
+            input[i1 + im] = work3D[w1 + internalImZ];
+            input[i2] = work3D[w2];
+            input[i2 + im] = work3D[w2 + internalImZ];
+            input[i3] = work3D[w3];
+            input[i3 + im] = work3D[w3 + internalImZ];
+            input[i4] = work3D[w4];
+            input[i4 + im] = work3D[w4 + internalImZ];
+          }
+          for (; y < nY; y++) {
+            int workIndex = y * trNextY + trZX;
+            int inputIndex = y * nextY + iZX;
+            input[inputIndex] = work3D[workIndex];
+            input[inputIndex + im] = work3D[workIndex + internalImZ];
           }
         }
       }
@@ -1214,7 +1283,7 @@ public class Complex3DParallel {
     }
 
     // Process remaining elements
-    for (; i < length; i+=2) {
+    for (; i < length; i += 2) {
       double r = recip[recipOffset + i / 2];
       work[workOffset + i] *= r;
       work[workOffset + i + internalImZ] *= r;
@@ -1224,20 +1293,19 @@ public class Complex3DParallel {
   /**
    * Load the Y-Z plane at fixed X into the work array.
    *
-   * @param input        The input array.
-   * @param inputOffset  The input offset (typically x * nextX).
-   * @param output       The output array.
-   * @param outputOffset The output offset (typically zero).
+   * @param input       The input array.
+   * @param inputOffset The input offset (typically x * nextX).
+   * @param output      The output array.
    */
-  private void transpose(double[] input, int inputOffset, double[] output, int outputOffset) {
+  private void transpose(double[] input, int inputOffset, double[] output) {
     // Typically the inputOffset is x * nextX.
     // Typically the outputOffset is 0.
     for (int z = 0; z < nZ; z++) {
       for (int y = 0; y < nY; y++) {
         double real = input[inputOffset + y * nextY + z * nextZ];
         double imag = input[inputOffset + y * nextY + z * nextZ + im];
-        output[outputOffset + y * trNextY + z * trNextZ] = real;
-        output[outputOffset + y * trNextY + z * trNextZ + internalImZ] = imag;
+        output[y * trNextY + z * trNextZ] = real;
+        output[y * trNextY + z * trNextZ + internalImZ] = imag;
       }
     }
   }
@@ -1245,18 +1313,17 @@ public class Complex3DParallel {
   /**
    * Load the Y-Z plane at fixed X back into the input array.
    *
-   * @param input        The input array.
-   * @param inputOffset  The input offset (typically x * nextX).
-   * @param output       The output array.
-   * @param outputOffset The output offset (typically zero).
+   * @param input       The input array.
+   * @param inputOffset The input offset (typically x * nextX).
+   * @param output      The output array.
    */
-  private void unTranspose(double[] input, int inputOffset, double[] output, int outputOffset) {
+  private void unTranspose(double[] input, int inputOffset, double[] output) {
     // Typically the inputOffset is x * nextX.
     // Typically the outputOffset is 0.
     for (int z = 0; z < nZ; z++) {
       for (int y = 0; y < nY; y++) {
-        double real = output[outputOffset + y * trNextY + z * trNextZ];
-        double imag = output[outputOffset + y * trNextY + z * trNextZ + internalImZ];
+        double real = output[y * trNextY + z * trNextZ];
+        double imag = output[y * trNextY + z * trNextZ + internalImZ];
         input[inputOffset + y * nextY + z * nextZ] = real;
         input[inputOffset + y * nextY + z * nextZ + im] = imag;
       }
@@ -1346,14 +1413,15 @@ public class Complex3DParallel {
             + "The best timing out of %d repetitions will be used.%n",
         dim, nCPU, reps);
     // One dimension of the serial array divided by the number of threads.
-    Complex3D complex3D;
+    Complex3DParallel complex3D;
     Complex3DParallel complex3DParallel;
     ParallelTeam parallelTeam = new ParallelTeam(nCPU);
+    ParallelTeam parallelTeam1 = new ParallelTeam(1);
     if (blocked) {
-      complex3D = new Complex3D(dim, dim, dim, DataLayout3D.BLOCKED_X);
+      complex3D = new Complex3DParallel(dim, dim, dim, parallelTeam1, DataLayout3D.BLOCKED_X);
       complex3DParallel = new Complex3DParallel(dim, dim, dim, parallelTeam, DataLayout3D.BLOCKED_X);
     } else {
-      complex3D = new Complex3D(dim, dim, dim, DataLayout3D.INTERLEAVED);
+      complex3D = new Complex3DParallel(dim, dim, dim, parallelTeam1, DataLayout3D.INTERLEAVED);
       complex3DParallel = new Complex3DParallel(dim, dim, dim, parallelTeam, DataLayout3D.INTERLEAVED);
     }
     final int dimCubed = dim * dim * dim;
@@ -1377,7 +1445,6 @@ public class Complex3DParallel {
     complex3D.ifft(data);
     System.out.println("Warm Up Sequential Convolution");
     complex3D.convolution(data);
-
 
 
     for (int i = 0; i < reps; i++) {
@@ -1444,5 +1511,6 @@ public class Complex3DParallel {
     System.out.printf(" Parallel Convolution Timings:\n" + complex3DParallel.timingString());
 
     parallelTeam.shutdown();
+    parallelTeam1.shutdown();
   }
 }

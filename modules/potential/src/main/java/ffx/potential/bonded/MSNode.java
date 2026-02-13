@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -191,6 +191,22 @@ public class MSNode extends DefaultMutableTreeNode implements ROLS {
     List<Atom> atomList = getList(Atom.class);
     Collections.sort(atomList);
     return atomList;
+  }
+
+  /**
+   * Returns the first active heavy atom in the list of atoms for the current structure.
+   * Heavy atoms are defined as non-hydrogen atoms.
+   *
+   * @return The first heavy atom found in the structure or null if no active heavy atom is present.
+   */
+  public Atom getFirstActiveHeavyAtom() {
+    List<Atom> atomList = getAtomList();
+    for (Atom atom : atomList) {
+      if (atom.isHeavy() && atom.isActive()) {
+        return atom;
+      }
+    }
+    return null;
   }
 
   /**

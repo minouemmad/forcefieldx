@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -153,7 +153,7 @@ public class Constants {
    */
   public static final double R = BOLTZMANN_SI * AVOGADRO * 0.001 * KJ_TO_KCAL;
   /**
-   * Boltzmann/ideal gas constant in units of g*Ang^2/(mol*psec^2*K).
+   * Ideal gas constant in units of g*Ang^2/(mol*psec^2*K).
    * <code> kB = BOLTZMANN_SI * KG_TO_GRAMS * METERS_TO_ANG * METERS_TO_ANG * AVOGADRO / (SEC_TO_PSEC * SEC_TO_PSEC)</code>
    * <code>kB = 0.831446261815324</code>
    */

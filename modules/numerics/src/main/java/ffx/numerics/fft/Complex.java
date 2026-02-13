@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -78,11 +78,10 @@ import static org.apache.commons.math3.util.FastMath.sin;
 public class Complex {
 
   private static final Logger logger = Logger.getLogger(Complex.class.getName());
-  // TINKER v. 5.0 factors to achieve exact numerical agreement.
-  // private static final int[] availableFactors = {5, 4, 3, 2};
-  // private static final int firstUnavailablePrime = 7;
   private static final int[] availableFactors = {7, 6, 5, 4, 3, 2};
+  // private static final int[] availableFactors = {4, 3, 2};
   private static final int firstUnavailablePrime = 11;
+  // private static final int firstUnavailablePrime = 5;
   /**
    * Number of complex numbers in the transform.
    */
@@ -113,10 +112,6 @@ public class Complex {
    */
   private final int[] factors;
   /**
-   * Twiddle factors.
-   */
-  private final double[][][] twiddle;
-  /**
    * Packing of non-contiguous data.
    */
   private final double[] packedData;
@@ -138,6 +133,11 @@ public class Complex {
    */
   private boolean useSIMD;
   /**
+   * The SIMD width to prefer. The default is the preferred width for the platform, but
+   * can be set to less than this by the flag fft.width.
+   */
+  private int simdWidth;
+  /**
    * Minimum SIMD loop length set to the preferred SIMD vector length.
    */
   private int minSIMDLoopLength;
@@ -157,11 +157,7 @@ public class Complex {
   /**
    * Cache the last set of radix factors.
    */
-  private static int[] factorsCache;
-  /**
-   * Cache the last set tiddle factors.
-   */
-  private static double[][][] twiddleCache = null;
+  private static int[] factorsCache = null;
   /**
    * Cache the last set of radix factors. These classes are static and thread-safe.
    */
@@ -236,18 +232,16 @@ public class Complex {
       // The last set of factors, twiddles and mixed radix factors will be reused.
       if (this.n == lastN && this.im == lastIm && this.nFFTs == lastNFFTs) {
         factors = factorsCache;
-        twiddle = twiddleCache;
         mixedRadixFactors = mixedRadixFactorsCache;
       } else {
         // The cache cannot be reused and will be updated.
         factors = factor(n);
-        twiddle = wavetable(n, factors);
+        double[][][] twiddle = wavetable(n, factors);
         mixedRadixFactors = new MixedRadixFactor[factors.length];
         lastN = this.n;
         lastIm = this.im;
         lastNFFTs = this.nFFTs;
         factorsCache = factors;
-        twiddleCache = twiddle;
         mixedRadixFactorsCache = mixedRadixFactors;
         // Allocate space for each pass and radix instances for each factor.
         int product = 1;
@@ -270,17 +264,36 @@ public class Complex {
               mixedRadixFactors[i] = new MixedRadixFactorPrime(passConstants);
             }
           }
+          // logger.info(" Mixed Radix Factor: " + mixedRadixFactors[i]);
         }
       }
 
-      // Do not use SIMD by default for now.
-      useSIMD = false;
-      String simd = System.getProperty("fft.useSIMD", Boolean.toString(useSIMD));
+      // Use SIMD by default.
+      useSIMD = true;
+      String simd = System.getProperty("fft.simd", Boolean.toString(useSIMD));
       try {
         useSIMD = Boolean.parseBoolean(simd);
       } catch (Exception e) {
-        logger.info(" Invalid value for fft.useSIMD: " + simd);
+        logger.info(" Invalid value for fft.simd: " + simd);
         useSIMD = false;
+      }
+
+      simdWidth = MixedRadixFactor.LENGTH;
+      String width = System.getProperty("fft.simd.width", Integer.toString(simdWidth));
+      try {
+        simdWidth = Integer.parseInt(width);
+        if (simdWidth < 2 || simdWidth > MixedRadixFactor.LENGTH || simdWidth % 2 != 0) {
+          logger.info(" Invalid value for fft.simd.width: " + width);
+          simdWidth = MixedRadixFactor.LENGTH;
+        }
+      } catch (Exception e) {
+        logger.info(" Invalid value for fft.simd.width: " + width);
+        simdWidth = MixedRadixFactor.LENGTH;
+      }
+
+      for (MixedRadixFactor mixedRadixFactor : mixedRadixFactors) {
+        mixedRadixFactor.setSIMDWidth(simdWidth);
+        // logger.info(" " + mixedRadixFactor);
       }
 
       // Minimum SIMD inner loop length.
@@ -490,9 +503,9 @@ public class Complex {
    * The value of k is the FFT number (0 to nFFTs-1).
    * The value of nextFFT is the stride between FFT data sets. The nextFFT value is ignored if the number of FFTs is 1.
    *
-   * @param data   an array of double.
-   * @param offset the offset to the beginning of the data.
-   * @param stride the stride between data points.
+   * @param data    an array of double.
+   * @param offset  the offset to the beginning of the data.
+   * @param stride  the stride between data points.
    * @param nextFFT the offset to the beginning of the next FFT when nFFTs > 1.
    */
   public void inverse(double[] data, int offset, int stride, int nextFFT) {
@@ -553,12 +566,18 @@ public class Complex {
     for (int i = 0; i < nfactors; i++) {
       final int pass = i % 2;
       MixedRadixFactor mixedRadixFactor = mixedRadixFactors[i];
+      boolean applySIMD = false;
+      // If the useSIMD flag is true, evaluate this pass for optimal SIMD width.
+      if (useSIMD) {
+        // Check the requested SIMD species.
+
+      }
+
       if (useSIMD && mixedRadixFactor.innerLoopLimit >= minSIMDLoopLength) {
         mixedRadixFactor.passSIMD(passData[pass]);
       } else {
         mixedRadixFactor.passScalar(passData[pass]);
       }
-
     }
 
     // If the number of factors is odd, the final result is in the scratch array.
@@ -630,7 +649,7 @@ public class Complex {
    * @param n the length of the data.
    * @return integer factors
    */
-  private static int[] factor(int n) {
+  protected static int[] factor(int n) {
     if (n < 2) {
       return null;
     }
@@ -721,12 +740,13 @@ public class Complex {
       // System.out.println("\n  Factor: " + factor);
       // System.out.println("   Product: " + product);
       ret[i] = new double[outLoopLimit][2 * nTwiddle];
+
       // System.out.printf("   Size: T(%d,%d)\n", outLoopLimit, nTwiddle);
       final double[][] twid = ret[i];
       for (int j = 0; j < factor - 1; j++) {
         twid[0][2 * j] = 1.0;
         twid[0][2 * j + 1] = 0.0;
-        // System.out.printf("    T(%d,%d) = %10.6f %10.6f\n", 0, j, twid[0][2 * j], twid[0][2 * j + 1]);
+        // System.out.printf("  T(%d,%d) = %10.6f %10.6f\n", 0, j, twid[0][2 * j], twid[0][2 * j + 1]);
       }
       for (int k = 1; k < outLoopLimit; k++) {
         int m = 0;
@@ -736,7 +756,7 @@ public class Complex {
           final double theta = TwoPI_N * m;
           twid[k][2 * j] = cos(theta);
           twid[k][2 * j + 1] = sin(theta);
-          // System.out.printf("    T(%d,%d) = %10.6f %10.6f\n", k, j, twid[k][2 * j], twid[k][2 * j + 1]);
+          // System.out.printf("  T(%d,%d) = %10.6f %10.6f\n", k, j, twid[k][2 * j], twid[k][2 * j + 1]);
         }
       }
     }
@@ -807,22 +827,30 @@ public class Complex {
   public static void main(String[] args) throws Exception {
     int dimNotFinal = 128;
     int reps = 5;
+    boolean blocked = false;
     try {
       dimNotFinal = Integer.parseInt(args[0]);
       if (dimNotFinal < 1) {
-        dimNotFinal = 100;
+        dimNotFinal = 128;
       }
       reps = Integer.parseInt(args[1]);
       if (reps < 1) {
         reps = 5;
       }
+      blocked = Boolean.parseBoolean(args[2]);
     } catch (Exception e) {
       //
     }
     final int dim = dimNotFinal;
     System.out.printf("Initializing a 1D array of length %d.\n"
         + "The best timing out of %d repetitions will be used.%n", dim, reps);
-    Complex complex = new Complex(dim);
+    DataLayout1D dataLayout1D = DataLayout1D.INTERLEAVED;
+    int im = 1;
+    if (blocked) {
+      dataLayout1D = DataLayout1D.BLOCKED;
+      im = dim;
+    }
+    Complex complex = new Complex(dim, dataLayout1D, im);
     final double[] data = new double[dim * 2];
     Random random = new Random(1);
     for (int i = 0; i < dim; i++) {

@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -140,15 +140,24 @@ public class MixedRadixFactor5 extends MixedRadixFactor {
 
     j += jstep;
     for (int k = 1; k < outerLoopLimit; k++, j += jstep) {
-      final double[] twids = twiddles[k];
-      final double w1r = twids[0];
-      final double w1i = -sign * twids[1];
-      final double w2r = twids[2];
-      final double w2i = -sign * twids[3];
-      final double w3r = twids[4];
-      final double w3i = -sign * twids[5];
-      final double w4r = twids[6];
-      final double w4i = -sign * twids[7];
+//      final double[] twids = twiddles[k];
+//      final double w1r = twids[0];
+//      final double w1i = -sign * twids[1];
+//      final double w2r = twids[2];
+//      final double w2i = -sign * twids[3];
+//      final double w3r = twids[4];
+//      final double w3i = -sign * twids[5];
+//      final double w4r = twids[6];
+//      final double w4i = -sign * twids[7];
+      final int index = k * 4;
+      final double w1r = wr[index];
+      final double w2r = wr[index + 1];
+      final double w3r = wr[index + 2];
+      final double w4r = wr[index + 3];
+      final double w1i = -sign * wi[index];
+      final double w2i = -sign * wi[index + 1];
+      final double w3i = -sign * wi[index + 2];
+      final double w4i = -sign * wi[index + 3];
       for (int k1 = 0; k1 < innerLoopLimit; k1++, i += ii, j += ii) {
         final double z0r = data[i];
         final double z1r = data[i + di];
@@ -185,7 +194,6 @@ public class MixedRadixFactor5 extends MixedRadixFactor {
         ret[j] = z0r + t5r;
         ret[j + im] = z0i + t5i;
 
-
         multiplyAndStore(t8r - t10i, t8i + t10r, w1r, w1i, ret, j + dj, j + dj + im);
         multiplyAndStore(t9r - t11i, t9i + t11r, w2r, w2i, ret, j + dj2, j + dj2 + im);
         multiplyAndStore(t9r + t11i, t9i - t11r, w3r, w3i, ret, j + dj3, j + dj3 + im);
@@ -201,17 +209,11 @@ public class MixedRadixFactor5 extends MixedRadixFactor {
    */
   @Override
   protected void passSIMD(PassData passData) {
-    if (im == 1) {
-      // If the inner loop limit is not divisible by the loop increment, use the scalar method.
-      if (innerLoopLimit % LOOP != 0) {
-        passScalar(passData);
-      } else {
-        interleaved(passData);
-      }
+    if (!isValidSIMDWidth(simdWidth)) {
+      passScalar(passData);
     } else {
-      // If the inner loop limit is not divisible by the loop increment, use the scalar method.
-      if (innerLoopLimit % BLOCK_LOOP != 0) {
-        passScalar(passData);
+      if (im == 1) {
+        interleaved(passData);
       } else {
         blocked(passData);
       }
@@ -232,14 +234,14 @@ public class MixedRadixFactor5 extends MixedRadixFactor {
     final double sin2PI_5s = sign * sin2PI_5;
     final double sinPI_5s = sign * sinPI_5;
     // First pass of the 5-point FFT has no twiddle factors.
-    for (int k1 = 0; k1 < innerLoopLimit; k1 += LOOP, i += LENGTH, j += LENGTH) {
-      DoubleVector
+    for (int k1 = 0; k1 < innerLoopLimit; k1 += INTERLEAVED_LOOP, i += LENGTH, j += LENGTH) {
+      final DoubleVector
           z0 = fromArray(DOUBLE_SPECIES, data, i),
           z1 = fromArray(DOUBLE_SPECIES, data, i + di),
           z2 = fromArray(DOUBLE_SPECIES, data, i + di2),
           z3 = fromArray(DOUBLE_SPECIES, data, i + di3),
           z4 = fromArray(DOUBLE_SPECIES, data, i + di4);
-      DoubleVector
+      final DoubleVector
           t1 = z1.add(z4),
           t2 = z2.add(z3),
           t3 = z1.sub(z4),
@@ -260,24 +262,24 @@ public class MixedRadixFactor5 extends MixedRadixFactor {
 
     j += jstep;
     for (int k = 1; k < outerLoopLimit; k++, j += jstep) {
-      final double[] twids = twiddles[k];
-      DoubleVector
-          w1r = broadcast(DOUBLE_SPECIES, twids[0]),
-          w1i = broadcast(DOUBLE_SPECIES, -sign * twids[1]).mul(NEGATE_IM),
-          w2r = broadcast(DOUBLE_SPECIES, twids[2]),
-          w2i = broadcast(DOUBLE_SPECIES, -sign * twids[3]).mul(NEGATE_IM),
-          w3r = broadcast(DOUBLE_SPECIES, twids[4]),
-          w3i = broadcast(DOUBLE_SPECIES, -sign * twids[5]).mul(NEGATE_IM),
-          w4r = broadcast(DOUBLE_SPECIES, twids[6]),
-          w4i = broadcast(DOUBLE_SPECIES, -sign * twids[7]).mul(NEGATE_IM);
-      for (int k1 = 0; k1 < innerLoopLimit; k1 += LOOP, i += LENGTH, j += LENGTH) {
-        DoubleVector
+      final int index = k * 4;
+      final DoubleVector
+          w1r = broadcast(DOUBLE_SPECIES, wr[index]),
+          w2r = broadcast(DOUBLE_SPECIES, wr[index + 1]),
+          w3r = broadcast(DOUBLE_SPECIES, wr[index + 2]),
+          w4r = broadcast(DOUBLE_SPECIES, wr[index + 3]),
+          w1i = broadcast(DOUBLE_SPECIES, -sign * wi[index]).mul(NEGATE_IM),
+          w2i = broadcast(DOUBLE_SPECIES, -sign * wi[index + 1]).mul(NEGATE_IM),
+          w3i = broadcast(DOUBLE_SPECIES, -sign * wi[index + 2]).mul(NEGATE_IM),
+          w4i = broadcast(DOUBLE_SPECIES, -sign * wi[index + 3]).mul(NEGATE_IM);
+      for (int k1 = 0; k1 < innerLoopLimit; k1 += INTERLEAVED_LOOP, i += LENGTH, j += LENGTH) {
+        final DoubleVector
             z0 = fromArray(DOUBLE_SPECIES, data, i),
             z1 = fromArray(DOUBLE_SPECIES, data, i + di),
             z2 = fromArray(DOUBLE_SPECIES, data, i + di2),
             z3 = fromArray(DOUBLE_SPECIES, data, i + di3),
             z4 = fromArray(DOUBLE_SPECIES, data, i + di4);
-        DoubleVector
+        final DoubleVector
             t1 = z1.add(z4),
             t2 = z2.add(z3),
             t3 = z1.sub(z4),
@@ -290,15 +292,15 @@ public class MixedRadixFactor5 extends MixedRadixFactor {
             t10 = t3.mul(sin2PI_5s).add(t4.mul(sinPI_5s)).rearrange(SHUFFLE_RE_IM),
             t11 = t4.mul(-sin2PI_5s).add(t3.mul(sinPI_5s)).rearrange(SHUFFLE_RE_IM);
         z0.add(t5).intoArray(ret, j);
-        DoubleVector
-            x1 = t8.add(t10.mul(NEGATE_RE)),
-            x2 = t9.add(t11.mul(NEGATE_RE)),
-            x3 = t9.add(t11.mul(NEGATE_IM)),
-            x4 = t8.add(t10.mul(NEGATE_IM));
-        w1r.mul(x1).add(w1i.mul(x1).rearrange(SHUFFLE_RE_IM)).intoArray(ret, j + dj);
-        w2r.mul(x2).add(w2i.mul(x2).rearrange(SHUFFLE_RE_IM)).intoArray(ret, j + dj2);
-        w3r.mul(x3).add(w3i.mul(x3).rearrange(SHUFFLE_RE_IM)).intoArray(ret, j + dj3);
-        w4r.mul(x4).add(w4i.mul(x4).rearrange(SHUFFLE_RE_IM)).intoArray(ret, j + dj4);
+        final DoubleVector
+            x1 = t10.fma(NEGATE_RE, t8),
+            x2 = t11.fma(NEGATE_RE, t9),
+            x3 = t11.fma(NEGATE_IM, t9),
+            x4 = t10.fma(NEGATE_IM, t8);
+        w1r.fma(x1, w1i.mul(x1).rearrange(SHUFFLE_RE_IM)).intoArray(ret, j + dj);
+        w2r.fma(x2, w2i.mul(x2).rearrange(SHUFFLE_RE_IM)).intoArray(ret, j + dj2);
+        w3r.fma(x3, w3i.mul(x3).rearrange(SHUFFLE_RE_IM)).intoArray(ret, j + dj3);
+        w4r.fma(x4, w4i.mul(x4).rearrange(SHUFFLE_RE_IM)).intoArray(ret, j + dj4);
       }
     }
   }
@@ -365,16 +367,16 @@ public class MixedRadixFactor5 extends MixedRadixFactor {
     }
     j += jstep;
     for (int k = 1; k < outerLoopLimit; k++, j += jstep) {
-      final double[] twids = twiddles[k];
-      DoubleVector
-          w1r = broadcast(DOUBLE_SPECIES, twids[0]),
-          w1i = broadcast(DOUBLE_SPECIES, -sign * twids[1]),
-          w2r = broadcast(DOUBLE_SPECIES, twids[2]),
-          w2i = broadcast(DOUBLE_SPECIES, -sign * twids[3]),
-          w3r = broadcast(DOUBLE_SPECIES, twids[4]),
-          w3i = broadcast(DOUBLE_SPECIES, -sign * twids[5]),
-          w4r = broadcast(DOUBLE_SPECIES, twids[6]),
-          w4i = broadcast(DOUBLE_SPECIES, -sign * twids[7]);
+      final int index = k * 4;
+      final double
+          w1r = wr[index],
+          w2r = wr[index + 1],
+          w3r = wr[index + 2],
+          w4r = wr[index + 3],
+          w1i = -sign * wi[index],
+          w2i = -sign * wi[index + 1],
+          w3i = -sign * wi[index + 2],
+          w4i = -sign * wi[index + 3];
       for (int k1 = 0; k1 < innerLoopLimit; k1 += BLOCK_LOOP, i += LENGTH, j += LENGTH) {
         final DoubleVector
             z0r = fromArray(DOUBLE_SPECIES, data, i),
@@ -412,21 +414,20 @@ public class MixedRadixFactor5 extends MixedRadixFactor {
             t11i = t4i.mul(-sin2PI_5s).add(t3i.mul(sinPI_5s));
         z0r.add(t5r).intoArray(ret, j);
         z0i.add(t5i).intoArray(ret, j + im);
-        DoubleVector
+        final DoubleVector
             x1r = t8r.sub(t10i), x1i = t8i.add(t10r),
             x2r = t9r.sub(t11i), x2i = t9i.add(t11r),
             x3r = t9r.add(t11i), x3i = t9i.sub(t11r),
             x4r = t8r.add(t10i), x4i = t8i.sub(t10r);
-        w1r.mul(x1r).add(w1i.neg().mul(x1i)).intoArray(ret, j + dj);
-        w2r.mul(x2r).add(w2i.neg().mul(x2i)).intoArray(ret, j + dj2);
-        w3r.mul(x3r).add(w3i.neg().mul(x3i)).intoArray(ret, j + dj3);
-        w4r.mul(x4r).add(w4i.neg().mul(x4i)).intoArray(ret, j + dj4);
-        w1r.mul(x1i).add(w1i.mul(x1r)).intoArray(ret, j + dj + im);
-        w2r.mul(x2i).add(w2i.mul(x2r)).intoArray(ret, j + dj2 + im);
-        w3r.mul(x3i).add(w3i.mul(x3r)).intoArray(ret, j + dj3 + im);
-        w4r.mul(x4i).add(w4i.mul(x4r)).intoArray(ret, j + dj4 + im);
+        x1r.mul(w1r).sub(x1i.mul(w1i)).intoArray(ret, j + dj);
+        x2r.mul(w2r).sub(x2i.mul(w2i)).intoArray(ret, j + dj2);
+        x3r.mul(w3r).sub(x3i.mul(w3i)).intoArray(ret, j + dj3);
+        x4r.mul(w4r).sub(x4i.mul(w4i)).intoArray(ret, j + dj4);
+        x1i.mul(w1r).add(x1r.mul(w1i)).intoArray(ret, j + dj + im);
+        x2i.mul(w2r).add(x2r.mul(w2i)).intoArray(ret, j + dj2 + im);
+        x3i.mul(w3r).add(x3r.mul(w3i)).intoArray(ret, j + dj3 + im);
+        x4i.mul(w4r).add(x4r.mul(w4i)).intoArray(ret, j + dj4 + im);
       }
     }
   }
-
 }

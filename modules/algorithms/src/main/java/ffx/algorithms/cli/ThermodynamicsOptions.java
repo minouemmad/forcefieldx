@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -141,7 +141,7 @@ public class ThermodynamicsOptions {
     if (nSteps > 0) {
       runDynamics(molDyn, nSteps, dynamicsOptions, writeoutOptions, initVelocities, dyn);
     } else {
-      logger.info(" No steps remaining for this process!");
+      logger.info(" No steps remaining for this process.");
     }
     return molDyn;
   }
@@ -199,7 +199,7 @@ public class ThermodynamicsOptions {
   }
 
   /**
-   * The number of equilibration steps prior to production OST counts begin.
+   * The number of equilibration steps prior to production OST.
    *
    * @return Returns the number of equilibration steps.
    */

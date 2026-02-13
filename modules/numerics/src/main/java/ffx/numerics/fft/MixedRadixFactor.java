@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -72,13 +72,15 @@ public abstract class MixedRadixFactor {
    */
   protected static final int LENGTH = DOUBLE_SPECIES.length();
   /**
-   * The number of complex elements that will be processed in each inner loop iteration.
-   * The number of elements to process in the inner loop must be evenly divisible by this loop increment.
+   * The number of complex elements that will be processed in each inner loop iteration for
+   * interleaved data and the preferred SIMD species. The number of elements to process in the inner loop
+   * must be evenly divisible by this loop increment.
    */
-  protected static final int LOOP = LENGTH / 2;
+  protected static final int INTERLEAVED_LOOP = LENGTH / 2;
   /**
-   * The number of complex elements that will be processed in each inner loop iteration.
-   * The number of elements to process in the inner loop must be evenly divisible by this loop increment.
+   * The number of complex elements that will be processed in each inner loop iteration for block data
+   * and the preferred SIMD species. The number of elements to process in the inner loop must be
+   * evenly divisible by this loop increment.
    */
   protected static final int BLOCK_LOOP = LENGTH;
 
@@ -99,13 +101,14 @@ public abstract class MixedRadixFactor {
    */
   protected static final int LENGTH_128 = DoubleVector.SPECIES_128.length();
   /**
-   * The number of complex elements that will be processed in each inner loop iteration.
-   * The number of elements to process in the inner loop must be evenly divisible by this loop increment.
+   * 1 complex element will be processed in each inner loop iteration for
+   * interleaved data and a 128-bit SIMD width.
    */
-  protected static final int LOOP_128 = LENGTH_128 / 2;
+  protected static final int INTERLEAVED_LOOP_128 = LENGTH_128 / 2;
   /**
-   * The number of complex elements that will be processed in each inner loop iteration.
-   * The number of elements to process in the inner loop must be evenly divisible by this loop increment.
+   * 2 complex elements will be processed in each inner loop iteration for block data
+   * and a 128-bit SIMD width. The number of elements to process in the inner loop must be
+   * evenly divisible by 2.
    */
   protected static final int BLOCK_LOOP_128 = LENGTH_128;
 
@@ -126,13 +129,15 @@ public abstract class MixedRadixFactor {
    */
   protected static final int LENGTH_256 = DoubleVector.SPECIES_256.length();
   /**
-   * The number of complex elements that will be processed in each inner loop iteration.
-   * The number of elements to process in the inner loop must be evenly divisible by this loop increment.
+   * 2 complex elements will be processed in each inner loop iteration for
+   * interleaved data and the 256-bit SIMD width. The number of elements to process in the inner loop
+   * must be evenly divisible by 2.
    */
-  protected static final int LOOP_256 = LENGTH_256 / 2;
+  protected static final int INTERLEAVED_LOOP_256 = LENGTH_256 / 2;
   /**
-   * The number of complex elements that will be processed in each inner loop iteration.
-   * The number of elements to process in the inner loop must be evenly divisible by this loop increment.
+   * 4 complex elements will be processed in each inner loop iteration for block data
+   * and a 256-bit SIMD width. The number of elements to process in the inner loop must be
+   * evenly divisible by 4.
    */
   protected static final int BLOCK_LOOP_256 = LENGTH_256;
 
@@ -153,13 +158,15 @@ public abstract class MixedRadixFactor {
    */
   protected static final int LENGTH_512 = DoubleVector.SPECIES_512.length();
   /**
-   * The number of complex elements that will be processed in each inner loop iteration.
-   * The number of elements to process in the inner loop must be evenly divisible by this loop increment.
+   * 4 complex elements will be processed in each inner loop iteration for
+   * interleaved data and the 512-bit SIMD width. The number of elements to process in the inner loop
+   * must be evenly divisible by 4.
    */
-  protected static final int LOOP_512 = LENGTH_512 / 2;
+  protected static final int INTERLEAVED_LOOP_512 = LENGTH_512 / 2;
   /**
-   * The number of complex elements that will be processed in each inner loop iteration.
-   * The number of elements to process in the inner loop must be evenly divisible by this loop increment.
+   * 8 complex elements will be processed in each inner loop iteration for block data
+   * and a 512-bit SIMD width. The number of elements to process in the inner loop must be
+   * evenly divisible by 8.
    */
   protected static final int BLOCK_LOOP_512 = LENGTH_512;
 
@@ -237,18 +244,26 @@ public abstract class MixedRadixFactor {
   protected final int nextInput;
   /**
    * Equal to 2 * nextInput for interleaved complex data.
-   * Equal to nextInput for separate real and imaginary arrays.
+   * Equal to nextInput for blocked real and imaginary arrays.
    */
   protected final int di;
   /**
    * Equal to 2 * innerLoopLimit for interleaved complex data.
-   * Equal to innerLoopLimit for separate real and imaginary arrays.
+   * Equal to innerLoopLimit for blocked real and imaginary arrays.
    */
   protected final int dj;
   /**
    * The twiddle factors for this pass.
    */
   protected final double[][] twiddles;
+  /**
+   * The real twiddle factors for this pass.
+   */
+  protected final double[] wr;
+  /**
+   * The imaginary twiddle factors for this pass.
+   */
+  protected final double[] wi;
   /**
    * The increment for input data within the inner loop.
    * This is equal to 2 for interleaved complex data.
@@ -259,6 +274,10 @@ public abstract class MixedRadixFactor {
    * Increment for the inner loop.
    */
   protected final int jstep;
+  /**
+   * The SIMD width to use.
+   */
+  protected int simdWidth;
 
   /**
    * Constructor for the mixed radix factor.
@@ -288,6 +307,20 @@ public abstract class MixedRadixFactor {
       dj = innerLoopLimit;
     }
     jstep = (factor - 1) * dj;
+
+    int f1 = factor - 1;
+    wr = new double[outerLoopLimit * f1];
+    wi = new double[outerLoopLimit * f1];
+    for (int k = 0; k < outerLoopLimit; k++) {
+      final double[] twids = twiddles[k];
+      final int index = k * f1;
+      for (int j = 0; j < f1; j++) {
+        wr[index + j] = twids[2 * j];
+        wi[index + j] = twids[2 * j + 1];
+      }
+    }
+
+    simdWidth = getOptimalSIMDWidth();
   }
 
   /**
@@ -296,20 +329,21 @@ public abstract class MixedRadixFactor {
    * @return a string representation of the mixed radix factor.
    */
   public String toString() {
-    return "MixedRadixFactor {" +
-        "n=" + n +
-        ", nFFTs=" + nFFTs +
-        ", im=" + im +
-        ", factor=" + factor +
-        ", product=" + product +
-        ", outerLoopLimit=" + outerLoopLimit +
-        ", innerLoopLimit=" + innerLoopLimit +
-        ", nextInput=" + nextInput +
-        ", di=" + di +
-        ", dj=" + dj +
-        ", ii=" + ii +
-        ", jstep=" + jstep +
-        '}';
+    return " MixedRadixFactor {" +
+        "\n N: " + n +
+        "\n Factor: " + factor +
+        "\n Number of FFTs: " + nFFTs +
+        "\n Next real value: " + ii +
+        "\n Imaginary offset: " + im +
+        "\n Product: " + product +
+        "\n Outer Loop Limit: " + outerLoopLimit +
+        "\n Inner Loop Limit: " + innerLoopLimit +
+        "\n SIMD width: " + simdWidth +
+        "\n Next input: " + nextInput +
+        "\n Step between input values: " + di +
+        "\n Step between output values: " + dj +
+        "\n jstep =" + jstep +
+        "}\n";
   }
 
   /**
@@ -318,6 +352,54 @@ public abstract class MixedRadixFactor {
    * @param passData the pass data.
    */
   protected abstract void passScalar(PassData passData);
+
+  /**
+   * Check if the requested SIMD length is valid.
+   * @param width Requested SIMD species width.
+   * @return True if this width is supported.
+   */
+  protected boolean isValidSIMDWidth(int width) {
+    if (width != LENGTH) {
+      return false;
+    }
+    if (im == 1) {
+      // Interleaved
+      return innerLoopLimit % INTERLEAVED_LOOP == 0;
+    } else {
+      // Blocked
+      return innerLoopLimit % BLOCK_LOOP == 0;
+    }
+  }
+
+  /**
+   * Determine the optimal SIMD width. Currently supported widths are 2, 4 and 8.
+   * If no SIMD width is valid, return 0 to indicate use of the scalar path.
+   * @return The optimal SIMD width.
+   */
+  protected int getOptimalSIMDWidth() {
+    // Check the platform specific preferred width.
+    if (isValidSIMDWidth(LENGTH)) {
+      return LENGTH;
+    }
+    // No valid SIMD width.
+    return 0;
+  }
+
+  /**
+   * Set the SIMD width to use. If the supplied width is not supported, then the
+   * width will be set by the "getOptimalSIMDWidth" method.
+   *
+   * @param width The SIMD width to use.
+   * @return the SIMD width selected.
+   */
+  public int setSIMDWidth(int width) {
+    if (isValidSIMDWidth(width)) {
+      simdWidth = width;
+    } else {
+      simdWidth = getOptimalSIMDWidth();
+    }
+    return simdWidth;
+  }
 
   /**
    * Apply the mixed radix factor using SIMD operations.

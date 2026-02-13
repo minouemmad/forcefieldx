@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -35,7 +35,7 @@
 // exception statement from your version.
 //
 // ******************************************************************************
-package ffx.xray;
+package ffx.xray.solvent;
 
 import edu.rit.pj.ParallelTeam;
 import ffx.crystal.Crystal;
@@ -48,7 +48,7 @@ import java.util.logging.Logger;
 import static java.util.Arrays.fill;
 
 /**
- * This class implements a spatial decomposition based on partitioning a grid into octants. The
+ * This class implements a spatial decomposition based on partitioning a grid into slices. The
  * over-ridden "selectAtoms" method selects atoms that are not in the asymmetric unit, but are
  * within the supplied cutoff radius.
  *
@@ -78,17 +78,8 @@ public class BulkSolventSliceRegion extends SliceRegion {
    * @param cutoff a double.
    * @param parallelTeam a {@link edu.rit.pj.ParallelTeam} object.
    */
-  public BulkSolventSliceRegion(
-      int gX,
-      int gY,
-      int gZ,
-      double[] grid,
-      int nSymm,
-      int threadCount,
-      Crystal crystal,
-      Atom[] atoms,
-      double[][][] coordinates,
-      double cutoff,
+  public BulkSolventSliceRegion(int gX, int gY, int gZ, double[] grid, int nSymm,
+      int threadCount, Crystal crystal, Atom[] atoms, double[][][] coordinates, double cutoff,
       ParallelTeam parallelTeam) {
     super(gX, gY, gZ, grid, nSymm, threadCount, atoms, coordinates);
     this.gZ = gZ;

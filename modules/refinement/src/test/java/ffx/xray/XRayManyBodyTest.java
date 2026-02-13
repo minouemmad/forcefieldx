@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -38,11 +38,8 @@
 package ffx.xray;
 
 import ffx.algorithms.misc.AlgorithmsTest;
-import ffx.numerics.Potential;
 import ffx.xray.commands.ManyBody;
 import org.junit.Test;
-
-import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
@@ -54,16 +51,17 @@ import static org.junit.Assert.assertEquals;
  */
 public class XRayManyBodyTest extends AlgorithmsTest {
 
-  // @Test
+  @Test
   public void testManyBodyGlobal() {
     // Set-up the input arguments for the script.
     String[] args = {
-        "-a", "2",
-        "-L", "2",
-        "--sR", "1",
-        "--fR", "5",
-        getResourcePath("5awl.pdb"),
-        getResourcePath("5awl.mtz")
+        "-a", "2",      // All with rotamer elimination
+        "-L", "2",      // Richardson rotamer library
+        "--sR", "1",    // Start Residue 1
+        "--fR", "5",    // Last Residue 5
+        "--eR", getResourcePath("2DRM.restart"),
+        getResourcePath("2DRM.pdb"),
+        getResourcePath("2DRM.cif")
     };
     binding.setVariable("args", args);
     binding.setVariable("baseDir", registerTemporaryDirectory().toFile());
@@ -72,12 +70,15 @@ public class XRayManyBodyTest extends AlgorithmsTest {
     ManyBody manyBody = new ManyBody(binding).run();
     algorithmsScript = manyBody;
 
-    List<Potential> list = manyBody.getPotentials();
-    double expectedPotential = 35106.252654189106;
-    double actualPotential = list.get(0).getTotalEnergy();
-    double tol = 1.0E-4 * expectedPotential;
-    assertEquals(expectedPotential, actualPotential, tol);
-    manyBody.getManyBodyOptions().getRestartFile().delete();
+    // Target is lowered by ~30.
+    double actualInitialEnergy = manyBody.getInitialTargetEnergy();
+    double actualFinalEnergy = manyBody.getFinalTargetEnergy();
+    double expectedInitialEnergy = 6177.457854769329;
+    double expectedFinalEnergy = 6177.0459797797575;
+
+    double tol = 1.0;
+    assertEquals(" Initial Energy", expectedInitialEnergy, actualInitialEnergy, tol);
+    assertEquals(" Final Energy", expectedFinalEnergy, actualFinalEnergy, tol);
   }
 
   @Test

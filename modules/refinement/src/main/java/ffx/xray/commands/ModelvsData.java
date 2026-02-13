@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -41,6 +41,7 @@ import ffx.algorithms.cli.AlgorithmsCommand;
 import ffx.numerics.Potential;
 import ffx.potential.MolecularAssembly;
 import ffx.potential.bonded.Atom;
+import ffx.potential.cli.AtomSelectionOptions;
 import ffx.utilities.FFXBinding;
 import ffx.xray.DiffractionData;
 import ffx.xray.cli.XrayOptions;
@@ -71,12 +72,22 @@ public class ModelvsData extends AlgorithmsCommand {
   @Mixin
   private XrayOptions xrayOptions;
 
+  @Mixin
+  AtomSelectionOptions atomSelectionOptions;
+
   /**
-   * -p or --maps Output sigmaA weighted 2Fo-Fc and Fo-Fc electron density maps.
+   * -p or --maps Output sigmaA weighted 2Fo-Fc and Fo-Fc maps.
    */
   @Option(names = {"-p", "--maps"}, paramLabel = "false",
-      description = "Output sigmaA weighted 2Fo-Fc and Fo-Fc electron density maps.")
+      description = "Output sigmaA weighted 2Fo-Fc and Fo-Fc maps.")
   private boolean maps = false;
+
+  /**
+   * -n or --normalize Normalize maps to a standard deviation of 1.0.
+   */
+  @Option(names = {"-n", "--normalize"}, paramLabel = "false",
+      description = "Normalize maps to a standard deviation of 1.0.")
+  private boolean normalize = false;
 
   /**
    * -t or --timings Perform FFT timings.
@@ -137,9 +148,9 @@ public class ModelvsData extends AlgorithmsCommand {
     String filename;
     if (filenames != null && !filenames.isEmpty()) {
       // Each alternate conformer is returned in a separate MolecularAssembly.
-      molecularAssemblies = algorithmFunctions.openAll(filenames.get(0));
+      molecularAssemblies = algorithmFunctions.openAll(filenames.getFirst());
       activeAssembly = molecularAssemblies[0];
-      filename = filenames.get(0);
+      filename = filenames.getFirst();
     } else if (activeAssembly == null) {
       logger.info(helpString());
       return this;
@@ -149,6 +160,11 @@ public class ModelvsData extends AlgorithmsCommand {
     }
 
     logger.info(format("\n Running xray.ModelvsData on %s", filename));
+
+    // Apply active atom flags.
+    for (MolecularAssembly molecularAssembly : molecularAssemblies) {
+      atomSelectionOptions.setActiveAtoms(molecularAssembly);
+    }
 
     // Combine script flags (in parseResult) with properties.
     CompositeConfiguration properties = activeAssembly.getProperties();
@@ -177,7 +193,7 @@ public class ModelvsData extends AlgorithmsCommand {
     }
 
     if (maps) {
-      diffractionData.writeMaps(removeExtension(filename) + "_ffx");
+      diffractionData.writeMaps(removeExtension(filename), normalize);
     }
 
     if (timings) {
@@ -189,15 +205,7 @@ public class ModelvsData extends AlgorithmsCommand {
 
   @Override
   public List<Potential> getPotentials() {
-    if (molecularAssemblies == null) {
-      return new ArrayList<>();
-    } else {
-      return Arrays.stream(molecularAssemblies)
-          .filter(a -> a != null)
-          .map(MolecularAssembly::getPotentialEnergy)
-          .filter(e -> e != null)
-          .collect(Collectors.toList());
-    }
+    return getPotentialsFromAssemblies(molecularAssemblies);
   }
 
   @Override

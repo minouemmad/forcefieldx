@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -224,6 +224,10 @@ public class OSTGradient extends AlgorithmsCommand {
     double dedl = (lp - lm) / (2.0 * step);
 
     // Report the results.
+    // The finite-difference estimate fails for Lambda at the boundary between two bins
+    // L=0.535 passes (center of a bin)
+    // L=0.5375 fails (exactly between two bins)
+    // L=0.540 passes (center of a bin)
     logger.info(format(" Analytic dE/dL:   %15.8f", dEdLambda));
     logger.info(format(" Numeric  dE/dL:   %15.8f\n", dedl));
     dUdLError = Math.abs(dEdLambda - dedl);

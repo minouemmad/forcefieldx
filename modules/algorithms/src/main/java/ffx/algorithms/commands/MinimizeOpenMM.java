@@ -2,7 +2,7 @@
 //
 // Title:       Force Field X.
 // Description: Force Field X - Software for Molecular Biophysics.
-// Copyright:   Copyright (c) Michael J. Schnieders 2001-2025.
+// Copyright:   Copyright (c) Michael J. Schnieders 2001-2026.
 //
 // This file is part of Force Field X.
 //
@@ -181,12 +181,14 @@ public class MinimizeOpenMM extends AlgorithmsCommand {
         algorithmFunctions.saveAsXYZ(activeAssembly, saveFile);
       } else if (ext.toUpperCase().contains("ARC")) {
         saveFile = new File(dirName + name + ".arc");
+        saveFile = algorithmFunctions.versionFile(saveFile);
         xyzFilter = new XYZFilter(saveFile, activeAssembly, activeAssembly.getForceField(),
             activeAssembly.getProperties());
         writeFilter = xyzFilter;
         algorithmFunctions.saveAsXYZ(activeAssembly, saveFile);
       } else {
         saveFile = new File(dirName + name + ".pdb");
+        saveFile = algorithmFunctions.versionFile(saveFile);
         pdbFilter = new PDBFilter(saveFile, activeAssembly, activeAssembly.getForceField(),
             activeAssembly.getProperties());
         writeFilter = pdbFilter;

@@ -489,6 +489,7 @@ public class FindRestraints extends AlgorithmsCommand {
       // but you might want to warn if they're too close
       
       return true;
+  }
 
   /**
    * Calculate dihedral angle between four atoms

@@ -374,10 +374,14 @@ public class FindRestraints extends AlgorithmsCommand {
       return;
     }
 
-    // Calculate principal axis from HOST ONLY
+    // Calculate principal axis from HOST non-hydrogen atoms ONLY
     Atom[] hostAtoms = host.getAtomList().toArray(new Atom[0]);
     Atom[] guestAtoms = guest.getAtomList().toArray(new Atom[0]);
-    double[] com = getCOM(hostAtoms);
+    
+    // Use COM of non-hydrogen host atoms as the origin
+    double[] com = getCOMNonHydrogen(hostAtoms);
+    logger.info(format("Host COM (non-H): (%.3f, %.3f, %.3f)", com[0], com[1], com[2]));
+    
     double[][] rotationMatrix = getAlignmentRotationMatrix(hostAtoms, com);
 
     // Temporarily align to select anchors in a consistent frame
@@ -391,21 +395,9 @@ public class FindRestraints extends AlgorithmsCommand {
     
     Atom G2 = selectG2(guest, G1);
     if (G2 == null) return;
-
-    // Check G1-G2 bonding
-    if (!areBonded(G1, G2)) {
-        logger.warning(String.format("Warning: G1 (%s) and G2 (%s) are not bonded", 
-            G1.getName(), G2.getName()));
-    }
     
     Atom G3 = selectG3(guest, G1, G2);
     if (G3 == null) return;
-
-    // Check G2-G3 bonding
-    if (!areBonded(G2, G3)) {
-        logger.warning(String.format("Warning: G2 (%s) and G3 (%s) are not bonded", 
-            G2.getName(), G3.getName()));
-    }
 
     // Restore original coordinates for geometry evaluation
     restoreCoordinates(hostAtoms, hostCoords);
@@ -422,13 +414,7 @@ public class FindRestraints extends AlgorithmsCommand {
     logger.info(format("  G2: %s (index %d, residue %d)", G2.getName(), G2.getIndex(), G2.getResidueNumber()));
     logger.info(format("  G3: %s (index %d, residue %d)", G3.getName(), G3.getIndex(), G3.getResidueNumber()));
 
-    // Check triangle connectivity
-    logger.info(format("\n=== Connectivity Check ==="));
-    logger.info(format("G1-G2 bond: %s", areBonded(G1, G2) ? "YES" : "NO"));
-    logger.info(format("G2-G3 bond: %s", areBonded(G2, G3) ? "YES" : "NO"));
-    if (areBonded(G1, G3)) {
-        logger.info(format("G1-G3 bond: YES (unusual for dihedral definition)"));
-    }
+    // Note: G1, G2, G3 are geometric anchor atoms and do not require bonding constraints
 
     // Calculate all geometric parameters
     double r = distance(H1.getXYZ().get(), G1.getXYZ().get());
@@ -455,36 +441,7 @@ public class FindRestraints extends AlgorithmsCommand {
     }
   }
 
-  /**
-   * Check if two atoms are bonded based on PDB CONNECT records.
-   * Assumes the MolecularAssembly has already parsed CONNECT info.
-   */
-  private boolean areBonded(Atom a, Atom b) {
-      // Use the Atom bond list populated during PDB/CONNECT parsing.
-      return a.getBond(b) != null;
-  }
 
-  /**
-   * Check if atoms form a connected path G1-G2-G3.
-   */
-  private boolean isConnectedPath(Molecule guest, Atom g1, Atom g2, Atom g3) {
-      if (!areBonded(g1, g2)) {
-          logger.warning(String.format("G1 (%s) and G2 (%s) are not bonded", 
-              g1.getName(), g2.getName()));
-          return false;
-      }
-      
-      if (!areBonded(g2, g3)) {
-          logger.warning(String.format("G2 (%s) and G3 (%s) are not bonded", 
-              g2.getName(), g3.getName()));
-          return false;
-      }
-      
-      // Optional: Check if G1-G3 are bonded? Usually not for a proper dihedral
-      // but you might want to warn if they're too close
-      
-      return true;
-  }
 
   /**
    * Calculate dihedral angle between four atoms
@@ -586,9 +543,7 @@ public class FindRestraints extends AlgorithmsCommand {
       Atom best = null;
       double bestAngleDiff = Double.MAX_VALUE;
 
-      // First pass: Look for atoms bonded to G2
-      List<Atom> bondedCandidates = new ArrayList<>();
-      List<Atom> allCandidates = new ArrayList<>();
+      List<Atom> candidates = new ArrayList<>();
 
       for (Atom atom : guest.getAtomList()) {
           if (atom == G1 || atom == G2 || !atom.isHeavy()) continue;
@@ -601,14 +556,9 @@ public class FindRestraints extends AlgorithmsCommand {
           double d_g1 = distance(G1.getXYZ().get(), atom.getXYZ().get());
           if (d_g1 < minAdis) continue;
 
-          // Check if bonded to G2 (from CONNECT records)
-          if (areBonded(G2, atom)) {
-            bondedCandidates.add(atom);
-          }
-          allCandidates.add(atom);
+          candidates.add(atom);
       }
-      // Prefer bonded atoms, fall back to all candidates
-      List<Atom> candidates = bondedCandidates.isEmpty() ? allCandidates : bondedCandidates;
+      
       if (candidates.isEmpty()) {
           logger.warning("No valid G3 candidates found");
           return null;
@@ -632,9 +582,8 @@ public class FindRestraints extends AlgorithmsCommand {
       if (best == null) {
           logger.warning("No G3 candidate with acceptable angle found");
       } else {
-          String source = bondedCandidates.contains(best) ? "bonded" : "non-bonded";
-          logger.info(String.format("Selected G3: %s (index %d, %s to G2)", 
-              best.getName(), best.getIndex(), source));
+          logger.info(String.format("Selected G3: %s (index %d)", 
+              best.getName(), best.getIndex()));
       }
       
       return best;
@@ -696,6 +645,34 @@ public class FindRestraints extends AlgorithmsCommand {
       COM[1] += pos[1] * s.getMass();
       COM[2] += pos[2] * s.getMass();
       totalMass += s.getMass();
+    }
+    totalMass = 1 / totalMass;
+    COM[0] *= totalMass;
+    COM[1] *= totalMass;
+    COM[2] *= totalMass;
+
+    return COM;
+  }
+
+  /**
+   * Gets the center of mass of non-hydrogen atoms in a set.
+   *
+   * @param atoms Array of atoms
+   * @return x,y,z coordinates of center of mass (non-hydrogen only)
+   */
+  private static double[] getCOMNonHydrogen(Atom[] atoms) {
+    double[] COM = new double[3];
+    double totalMass = 0.0;
+    for (Atom s : atoms) {
+      if (!s.isHeavy()) continue;  // Skip hydrogen atoms
+      double[] pos = s.getXYZ().get();
+      COM[0] += pos[0] * s.getMass();
+      COM[1] += pos[1] * s.getMass();
+      COM[2] += pos[2] * s.getMass();
+      totalMass += s.getMass();
+    }
+    if (totalMass == 0.0) {
+      return new double[]{0.0, 0.0, 0.0};
     }
     totalMass = 1 / totalMass;
     COM[0] *= totalMass;

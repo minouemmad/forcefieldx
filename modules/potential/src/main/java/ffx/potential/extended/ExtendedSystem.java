@@ -1072,6 +1072,14 @@ public class ExtendedSystem implements Potential {
                 dMod_dTaut = 0.0;
                 break;
         }
+            double phAfedBiasScale = getPhAFEDBiasScale();
+            discrBias *= phAfedBiasScale;
+            pHBias *= phAfedBiasScale;
+            dDiscr_dTitr *= phAfedBiasScale;
+            dPh_dTitr *= phAfedBiasScale;
+            dDiscr_dTaut *= phAfedBiasScale;
+            dPh_dTaut *= phAfedBiasScale;
+
         biasEnergyAndDerivs[0] = discrBias;
         biasEnergyAndDerivs[1] = pHBias;
         biasEnergyAndDerivs[2] = -modelBias;
@@ -1096,6 +1104,27 @@ public class ExtendedSystem implements Potential {
                 logger.fine(" dMod/dTaut: " + biasEnergyAndDerivs[8]);
             }
         }
+    }
+
+    /**
+     * pH-AFED scaling for pH bias and discretizer barrier terms.
+     *
+     * <p>When pH-AFED is enabled, scale these terms by T_lambda / T_phys so barrier heights and pH
+     * bias are consistent in kBT_lambda units.
+     *
+     * @return Scaling factor for pH/discretizer bias terms.
+     */
+    private double getPhAFEDBiasScale() {
+        if (!phAFED) {
+            return 1.0;
+        }
+        if (!Double.isFinite(currentTemperature) || currentTemperature <= 0.0) {
+            return 1.0;
+        }
+        if (!Double.isFinite(thetaTemp) || thetaTemp <= 0.0) {
+            return 1.0;
+        }
+        return thetaTemp / currentTemperature;
     }
 
     /**

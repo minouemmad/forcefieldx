@@ -1379,6 +1379,9 @@ public class MolecularDynamics implements Runnable, Terminatable {
     if (integrator instanceof Stochastic stochastic) {
       stochastic.setTemperature(targetTemperature);
     }
+    if (potential instanceof ExtendedSystem esv) {
+      esv.setTemperature(targetTemperature);
+    }
     // pH-AFED INITIALIZATION:
     if (potential instanceof ExtendedSystem) {
         initPhAFED();

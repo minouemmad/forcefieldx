@@ -208,6 +208,10 @@ public class Minimize extends AlgorithmsCommand {
         } else {
           algorithmFunctions.saveAsPDB(molecularAssembly, new File(dirName + fileName + ".pdb"));
         }
+
+        if (minimizeOptions.getSaveInduced()) {
+          saveInducedDipoles(molecularAssembly);
+        }
       }
     } else {
       // Handle Single Topology Cases.
@@ -265,6 +269,10 @@ public class Minimize extends AlgorithmsCommand {
         if (systemFilter instanceof PDBFilter) {
           FileUtils.append(saveFile, "END\n");
         }
+      }
+
+      if (minimizeOptions.getSaveInduced()) {
+        saveInducedDipoles(activeAssembly);
       }
     }
 

@@ -42,13 +42,19 @@ import ffx.algorithms.AlgorithmListener;
 import ffx.algorithms.AlgorithmUtils;
 import ffx.crystal.Crystal;
 import ffx.numerics.Potential;
+import ffx.potential.ForceFieldEnergy;
 import ffx.potential.MolecularAssembly;
+import ffx.potential.bonded.Atom;
+import ffx.potential.nonbonded.ParticleMeshEwald;
 import ffx.utilities.FFXCommand;
 import ffx.utilities.FFXBinding;
 import org.apache.commons.lang3.Strings;
 
 import javax.annotation.Nullable;
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -209,6 +215,59 @@ public class AlgorithmsCommand extends FFXCommand {
       String baseName = file.getName();
       String newName = baseDir.getAbsolutePath() + File.separator + baseName;
       return new File(newName);
+    }
+  }
+
+  /**
+   * Save induced dipoles from the PME node to a .uind file.
+   *
+   * @param molecularAssembly The assembly that owns the potential.
+   * @return The .uind file written, or null if induced dipoles are unavailable.
+   */
+  protected File saveInducedDipoles(MolecularAssembly molecularAssembly) {
+    if (molecularAssembly == null || molecularAssembly.getFile() == null) {
+      return null;
+    }
+    ForceFieldEnergy energy = molecularAssembly.getPotentialEnergy();
+    if (energy == null) {
+      logger.warning(" No ForceFieldEnergy available; skipping induced dipole output.");
+      return null;
+    }
+    ParticleMeshEwald pme = energy.getPmeNode();
+    if (pme == null || pme.inducedDipole == null || pme.inducedDipole.length == 0) {
+      logger.warning(" No PME induced dipoles available; skipping induced dipole output.");
+      return null;
+    }
+
+    File parent = molecularAssembly.getFile().getParentFile();
+    if (baseDir != null && baseDir.exists() && baseDir.isDirectory() && baseDir.canWrite()) {
+      parent = baseDir;
+    }
+    String name = molecularAssembly.getFile().getName();
+    int dot = name.lastIndexOf('.');
+    String baseName = (dot > 0) ? name.substring(0, dot) : name;
+    File uindFile = new File(parent, baseName + ".uind");
+
+    Atom[] atoms = molecularAssembly.getAtomArray();
+    double[][] induced = pme.inducedDipole[0];
+    if (induced == null || induced.length < atoms.length) {
+      logger.warning(" Incomplete PME induced dipole array; skipping induced dipole output.");
+      return null;
+    }
+
+    try (BufferedWriter writer = new BufferedWriter(new FileWriter(uindFile))) {
+      writer.write(format("%7d  %s%n", atoms.length, molecularAssembly.getName()));
+      for (int i = 0; i < atoms.length; i++) {
+        Atom atom = atoms[i];
+        double[] u = induced[i];
+        writer.write(format("%7d %-4s %16.8f %16.8f %16.8f%n",
+            atom.getIndex(), atom.getName(), u[0], u[1], u[2]));
+      }
+      logger.info(format(" Wrote induced dipoles to: %s", uindFile));
+      return uindFile;
+    } catch (IOException ex) {
+      logger.warning(format(" Exception writing induced dipoles to %s: %s", uindFile, ex));
+      return null;
     }
   }
 

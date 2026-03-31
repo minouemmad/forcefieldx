@@ -220,6 +220,10 @@ public class MinimizeOpenMM extends AlgorithmsCommand {
           FileUtils.append(saveFile, "END\n");
         }
       }
+
+      if (minimizeOptions.getSaveInduced()) {
+        saveInducedDipoles(activeAssembly);
+      }
     } else {
       logger.severe(" Could not start OpenMM minimization.");
     }

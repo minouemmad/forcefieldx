@@ -95,6 +95,19 @@ public class MinimizeOptions {
   }
 
   /**
+   * If true, save induced dipoles to a .uind file after minimization.
+   *
+   * @return True if induced dipoles should be written.
+   */
+  public boolean getSaveInduced() {
+    return group.saveInduced;
+  }
+
+  public void setSaveInduced(boolean saveInduced) {
+    group.saveInduced = saveInduced;
+  }
+
+  /**
    * Collection of Minimize Options.
    */
   private static class MinimizeOptionGroup {
@@ -120,6 +133,13 @@ public class MinimizeOptions {
     @Option(names = {"--nbfgs"}, paramLabel = "7", defaultValue = "7",
         description = "The number of correction vectors used by the L-BFGS optimization routine (0 for steepest-decent).")
     private int nbfgs = 7;
+
+    /**
+     * --si or --saveInduced Save induced dipoles after minimization.
+     */
+    @Option(names = {"--si", "--saveInduced"}, defaultValue = "false",
+      description = "Save induced dipoles to a .uind file after minimization.")
+    private boolean saveInduced = false;
 
   }
 }

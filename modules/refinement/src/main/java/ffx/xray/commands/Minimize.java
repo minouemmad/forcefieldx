@@ -290,6 +290,12 @@ public class Minimize extends AlgorithmsCommand {
       diffractionData.writeData(removeExtension(filename) + ".mtz");
     }
 
+    if (minimizeOptions.getSaveInduced()) {
+      for (MolecularAssembly molecularAssembly : molecularAssemblies) {
+        saveInducedDipoles(molecularAssembly);
+      }
+    }
+
     return this;
   }
 

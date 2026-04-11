@@ -108,6 +108,19 @@ public class MinimizeOptions {
   }
 
   /**
+   * If true, save permanent multipoles to a .uperm file after minimization.
+   *
+   * @return True if permanent multipoles should be written.
+   */
+  public boolean getSavePermanentMoments() {
+    return group.savePermanentMoments;
+  }
+
+  public void setSavePermanentMoments(boolean savePermanentMoments) {
+    group.savePermanentMoments = savePermanentMoments;
+  }
+
+  /**
    * Collection of Minimize Options.
    */
   private static class MinimizeOptionGroup {
@@ -140,6 +153,13 @@ public class MinimizeOptions {
     @Option(names = {"--si", "--saveInduced"}, defaultValue = "false",
       description = "Save induced dipoles to a .uind file after minimization.")
     private boolean saveInduced = false;
+
+    /**
+     * --sp or --savePermanentMoments Save permanent multipoles after minimization.
+     */
+    @Option(names = {"--sp", "--savePermanentMoments"}, defaultValue = "false",
+      description = "Save permanent multipoles (charge, dipole, quadrupole) to a .uperm file after minimization.")
+    private boolean savePermanentMoments = false;
 
   }
 }

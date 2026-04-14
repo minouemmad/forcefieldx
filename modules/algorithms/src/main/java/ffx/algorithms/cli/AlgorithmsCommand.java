@@ -239,6 +239,8 @@ public class AlgorithmsCommand extends FFXCommand {
       return null;
     }
 
+
+
     File parent = molecularAssembly.getFile().getParentFile();
     if (baseDir != null && baseDir.exists() && baseDir.isDirectory() && baseDir.canWrite()) {
       parent = baseDir;
@@ -267,6 +269,65 @@ public class AlgorithmsCommand extends FFXCommand {
       return uindFile;
     } catch (IOException ex) {
       logger.warning(format(" Exception writing induced dipoles to %s: %s", uindFile, ex));
+      return null;
+    }
+  }
+
+  /**
+   * Save permanent multipoles (charge, dipole x/y/z, quadrupole xx/xy/yy/xz/yz/zz) from the
+   * PME globalMultipole array to a .uperm file.
+   *
+   * <p>The 10 components per atom follow the FFX/Tinker convention:
+   * [0] charge, [1-3] dipole x/y/z, [4-9] quadrupole xx/xy/yy/xz/yz/zz.
+   *
+   * @param molecularAssembly The assembly that owns the potential.
+   * @return The .uperm file written, or null if permanent multipoles are unavailable.
+   */
+  protected File savePermanentMultipoles(MolecularAssembly molecularAssembly) {
+    if (molecularAssembly == null || molecularAssembly.getFile() == null) {
+      return null;
+    }
+    ForceFieldEnergy energy = molecularAssembly.getPotentialEnergy();
+    if (energy == null) {
+      logger.warning(" No ForceFieldEnergy available; skipping permanent multipole output.");
+      return null;
+    }
+    ParticleMeshEwald pme = energy.getPmeNode();
+    if (pme == null || pme.globalMultipole == null || pme.globalMultipole.length == 0) {
+      logger.warning(" No PME permanent multipoles available; skipping permanent multipole output.");
+      return null;
+    }
+
+    double[][] multipoles = pme.globalMultipole[0];
+    Atom[] atoms = molecularAssembly.getAtomArray();
+    if (multipoles == null || multipoles.length < atoms.length) {
+      logger.warning(" Incomplete PME globalMultipole array; skipping permanent multipole output.");
+      return null;
+    }
+
+    File parent = molecularAssembly.getFile().getParentFile();
+    if (baseDir != null && baseDir.exists() && baseDir.isDirectory() && baseDir.canWrite()) {
+      parent = baseDir;
+    }
+    String name = molecularAssembly.getFile().getName();
+    int dot = name.lastIndexOf('.');
+    String baseName = (dot > 0) ? name.substring(0, dot) : name;
+    File upermFile = new File(parent, baseName + ".uperm");
+
+    try (BufferedWriter writer = new BufferedWriter(new FileWriter(upermFile))) {
+      writer.write(format("%7d  %s%n", atoms.length, molecularAssembly.getName()));
+      for (int i = 0; i < atoms.length; i++) {
+        Atom atom = atoms[i];
+        double[] m = multipoles[i];
+        // charge  dipX dipY dipZ  quadXX quadXY quadYY quadXZ quadYZ quadZZ
+        writer.write(format("%7d %-4s %14.8f  %14.8f %14.8f %14.8f  %14.8f %14.8f %14.8f %14.8f %14.8f %14.8f%n",
+            atom.getIndex(), atom.getName(),
+            m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8], m[9]));
+      }
+      logger.info(format(" Wrote permanent multipoles to: %s", upermFile));
+      return upermFile;
+    } catch (IOException ex) {
+      logger.warning(format(" Exception writing permanent multipoles to %s: %s", upermFile, ex));
       return null;
     }
   }

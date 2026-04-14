@@ -158,7 +158,7 @@ public class MinimizeOptions {
      * --sp or --savePermanentMoments Save permanent multipoles after minimization.
      */
     @Option(names = {"--sp", "--savePermanentMoments"}, defaultValue = "false",
-      description = "Save permanent multipoles (charge, dipole, quadrupole) to a .uperm file after minimization.")
+        description = "Save permanent multipoles (charge, dipole, quadrupole) to a .uperm file after minimization.")
     private boolean savePermanentMoments = false;
 
   }

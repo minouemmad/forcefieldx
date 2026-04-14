@@ -212,6 +212,9 @@ public class Minimize extends AlgorithmsCommand {
         if (minimizeOptions.getSaveInduced()) {
           saveInducedDipoles(molecularAssembly);
         }
+        if (minimizeOptions.getSavePermanentMoments()) {
+          savePermanentMultipoles(molecularAssembly);
+        }
       }
     } else {
       // Handle Single Topology Cases.
@@ -273,6 +276,9 @@ public class Minimize extends AlgorithmsCommand {
 
       if (minimizeOptions.getSaveInduced()) {
         saveInducedDipoles(activeAssembly);
+      }
+      if (minimizeOptions.getSavePermanentMoments()) {
+        savePermanentMultipoles(activeAssembly);
       }
     }
 

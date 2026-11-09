@@ -276,6 +276,12 @@ public class ExtendedSystem implements Potential {
     private boolean fixTautomerState;
     private boolean fixTitrationState;
     /**
+     * Log lambda, total dU/dL and bias dU/dL of each ESV every this many force evaluations
+     * (esv.force.log.frequency; 0 = off).
+     */
+    private int forceLogFrequency = 0;
+    private long forceLogCount = 0;
+    /**
      * Filter to parse the dynamics restart file.
      */
     private ESVFilter esvFilter = null;
@@ -342,6 +348,7 @@ public class ExtendedSystem implements Potential {
 
         fixTitrationState = properties.getBoolean("fix.titration.lambda", false);
         fixTautomerState = properties.getBoolean("fix.tautomer.lambda", false);
+        forceLogFrequency = properties.getInt("esv.force.log.frequency", 0);
         useChargeConstraint = properties.getBoolean("esv.charge.constraint", false);
         int totalCharge = properties.getInt("esv.charge.constraint.value", 0);
 
@@ -614,21 +621,15 @@ public class ExtendedSystem implements Potential {
             String firstFileName = FilenameUtils.removeExtension(mola.getFile().getAbsolutePath());
             restartFile = new File(firstFileName + ".esv");
         } else {
-            int n = esvStates.length;
-            double[] thetaPosition = new double[n];
-            double[] thetaVelocity = new double[n];
-            double[] thetaAccel = new double[n];
-
-            if (!esvFilter.readESV(esvFile, thetaPosition, thetaVelocity, thetaAccel, esvHistogram)) {
+            // Handles both state layouts (one state per ESV, or one shared state).
+            if (!readESVInfoFrom(esvFile)) {
                 String message = " Could not load the restart file - dynamics terminated.";
                 logger.log(Level.WARNING, message);
                 throw new IllegalStateException(message);
             } else {
-                for (int i = 0; i < n; i++) {
-                    esvStates[i].x()[0] = thetaPosition[i];
-                    esvStates[i].v()[0] = thetaVelocity[i];
-                    esvStates[i].a()[0] = thetaAccel[i];
-                    logger.info(String.format("Lambda[%d] velocity = %10.6f, acceleration = %10.6f", i, thetaVelocity[i], thetaAccel[i]));
+                for (int i = 0; i < nESVs; i++) {
+                    logger.info(String.format(" Restart ESV[%d] theta = %10.6f, velocity = %10.6f",
+                            i, getTheta(i), phAFED ? esvStates[i].v()[0] : esvStates[0].v()[i]));
                 }
                 restartFile = esvFile;
                 updateLambdas();
@@ -1173,16 +1174,11 @@ public class ExtendedSystem implements Potential {
             return;
         }
 
-        if (phAFED) {
-            for (int i = 0; i < nESVs; i++) {
-                double theta = esvStates[i].x()[0];
-                extendedLambdas[i] = Math.pow(Math.sin(theta), 2);
-            }
-        } else {
-            double[] pos = esvStates[0].x();
-            for (int i = 0; i < nESVs; i++) {
-                double theta = pos[i];
-                extendedLambdas[i] = Math.pow(Math.sin(theta), 2);
+        for (int i = 0; i < nESVs; i++) {
+            // Fixed titration or tautomer lambdas keep their values.
+            if ((!fixTitrationState && i < nTitr) || (!fixTautomerState && i >= nTitr)) {
+                double sinTheta = Math.sin(getTheta(i));
+                extendedLambdas[i] = sinTheta * sinTheta;
             }
         }
 
@@ -1334,6 +1330,24 @@ public class ExtendedSystem implements Potential {
     }
 
     /**
+     * Theta of ESV i (pH-AFED keeps one state per ESV; otherwise all ESVs share one state).
+     */
+    private double getTheta(int i) {
+        return phAFED ? esvStates[i].x()[0] : esvStates[0].x()[i];
+    }
+
+    /**
+     * Set theta of ESV i.
+     */
+    private void setTheta(int i, double theta) {
+        if (phAFED) {
+            esvStates[i].x()[0] = theta;
+        } else {
+            esvStates[0].x()[i] = theta;
+        }
+    }
+
+    /**
      * Does not allow for changes to the tautomer states of tautomerizing residues
      */
     public void setFixedTautomerState(boolean fixTautomerState) {
@@ -1388,7 +1402,7 @@ public class ExtendedSystem implements Potential {
             extendedLambdas[index] = lambda;
 
             if (changeThetas) {
-                esvStates[index].x()[0] = Math.asin(Math.sqrt(lambda));
+                setTheta(index, Math.asin(Math.sqrt(lambda)));
             }
 
             List<Atom> currentAtomList = residue.getSideChainAtoms();
@@ -1423,7 +1437,7 @@ public class ExtendedSystem implements Potential {
             extendedLambdas[index] = lambda;
 
             if (changeThetas) {
-                esvStates[index].x()[0] = Math.asin(Math.sqrt(lambda));
+                setTheta(index, Math.asin(Math.sqrt(lambda)));
             }
 
             List<Atom> currentAtomList = residue.getSideChainAtoms();
@@ -1562,6 +1576,10 @@ public class ExtendedSystem implements Potential {
     }
 
     public void setPhAFED(boolean phAFED) {
+        // The ESV state layout is set in the constructor from the "phAFED" key-file property.
+        if (phAFED != this.phAFED && nESVs > 1) {
+            throw new IllegalStateException(" --phAFED requires 'phAFED true' in the key file.");
+        }
         this.phAFED = phAFED;
     }
 
@@ -2066,6 +2084,9 @@ public class ExtendedSystem implements Potential {
      */
     public double[] postForce() {
         double[] dEdL = ExtendedSystem.this.getDerivatives();
+        if (forceLogFrequency > 0 && (forceLogCount++ % forceLogFrequency == 0)) {
+            logForceDecomposition(forceLogCount - 1, dEdL);
+        }
         double[] dEdTheta = new double[dEdL.length];
 
 
@@ -2097,6 +2118,30 @@ public class ExtendedSystem implements Potential {
         }
 
         return dEdTheta;
+    }
+
+    /**
+     * Log one "DUDL" line: evaluation count, then for each ESV: lambda, total dU/dL, bias dU/dL.
+     */
+    private void logForceDecomposition(long count, double[] dEdL) {
+        double[] bias = new double[nESVs];
+        double[] comp = new double[9];
+        if (doBias) {
+            for (Residue residue : titratingResidueList) {
+                int titr = titratingResidueList.indexOf(residue);
+                getBiasTerms(residue, comp);
+                bias[titr] += comp[dDiscr_dTitrIndex] + comp[dPh_dTitrIndex] + comp[dModel_dTitrIndex];
+                if (isTautomer(residue)) {
+                    int taut = tautomerizingResidueList.indexOf(residue) + nTitr;
+                    bias[taut] += comp[dDiscr_dTautIndex] + comp[dPh_dTautIndex] + comp[dModel_dTautIndex];
+                }
+            }
+        }
+        StringBuilder sb = new StringBuilder(format("DUDL %d", count));
+        for (int i = 0; i < nESVs; i++) {
+            sb.append(format(" %.5f %.4f %.4f", extendedLambdas[i], dEdL[i], bias[i]));
+        }
+        logger.info(sb.toString());
     }
 
     public double[] getThetaMassArray() {

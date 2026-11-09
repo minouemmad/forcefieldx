@@ -175,7 +175,8 @@ public class ESVFilter {
   }
 
   /**
-   * Write the extended system variables to a file.
+   * Write the extended system variables to a file. The file is first written to a temporary file
+   * that then replaces the target, so an interrupted write never leaves a truncated restart file.
    *
    * @param dynFile The file to write.
    * @param x The extended system variables.
@@ -187,6 +188,12 @@ public class ESVFilter {
    * @return True if the file was written successfully.
    */
   public boolean writeESV(File dynFile, double[] x, double[] v, double[] a,
+      List<Residue> titrResList, final int[][][] esvHist, double pH) {
+    File tmp = DYNFilter.tempFile(dynFile);
+    return write(tmp, x, v, a, titrResList, esvHist, pH) && DYNFilter.replace(tmp, dynFile);
+  }
+
+  private boolean write(File dynFile, double[] x, double[] v, double[] a,
       List<Residue> titrResList, final int[][][] esvHist, double pH) {
     try (FileWriter fw = new FileWriter(dynFile); BufferedWriter bw = new BufferedWriter(fw)) {
       bw.write(" Number of ESVs and Title :\n");

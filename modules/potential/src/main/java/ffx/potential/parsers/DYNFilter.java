@@ -39,6 +39,8 @@ package ffx.potential.parsers;
 
 import static java.lang.Double.parseDouble;
 import static java.lang.String.format;
+import static java.nio.file.StandardCopyOption.ATOMIC_MOVE;
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 
 import ffx.crystal.Crystal;
 import java.io.BufferedReader;
@@ -47,6 +49,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -181,17 +184,44 @@ public class DYNFilter {
   }
 
   /**
-   * writeDYN
+   * writeDYN. The file is first written to a temporary file that then replaces the target, so an
+   * interrupted write (e.g. job pre-emption) never leaves a truncated restart file.
    *
    * @param dynFile The file to write.
+   * @param crystal The crystal unit cell.
    * @param x The atomic coordinates.
    * @param v The atomic velocities.
    * @param a The atomic accelerations.
    * @param ap The atomic previous accelerations.
-   * @param crystal The crystal unit cell.
    * @return Returns true if the file was written successfully.
    */
   public boolean writeDYN(File dynFile, Crystal crystal, double[] x, double[] v, double[] a,
+      double[] ap) {
+    File tmp = tempFile(dynFile);
+    return write(tmp, crystal, x, v, a, ap) && replace(tmp, dynFile);
+  }
+
+  /**
+   * Temporary file next to the target, used for atomic writes.
+   */
+  static File tempFile(File target) {
+    return new File(target.getAbsoluteFile().getParentFile(), target.getName() + ".tmp");
+  }
+
+  /**
+   * Atomically move a temporary file over the target.
+   */
+  static boolean replace(File tmp, File target) {
+    try {
+      Files.move(tmp.toPath(), target.toPath(), REPLACE_EXISTING, ATOMIC_MOVE);
+      return true;
+    } catch (IOException e) {
+      logger.log(Level.WARNING, " Could not move " + tmp + " to " + target, e);
+      return false;
+    }
+  }
+
+  private boolean write(File dynFile, Crystal crystal, double[] x, double[] v, double[] a,
       double[] ap) {
     try (FileWriter fw = new FileWriter(dynFile); BufferedWriter bw = new BufferedWriter(fw)) {
       bw.write(" Number of Atoms and Title :\n");

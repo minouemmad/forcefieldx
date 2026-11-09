@@ -90,6 +90,7 @@ import static java.util.Arrays.binarySearch;
 import static java.util.Arrays.fill;
 import static org.apache.commons.io.FilenameUtils.getExtension;
 import static org.apache.commons.io.FilenameUtils.removeExtension;
+import static org.apache.commons.math3.util.FastMath.exp;
 
 /**
  * Run NVE, NVT, or NPT molecular dynamics.
@@ -152,7 +153,8 @@ public class MolecularDynamics implements Runnable, Terminatable {
    * Special initialization for pH-AFED simulations
    */
   private void initPhAFED() {
-    if (potential instanceof ExtendedSystem esv) {
+    if (esvSystem != null) {
+        ExtendedSystem esv = esvSystem;
         if (esv.isPhAFED()) {
             double thetaTemp = esv.getThetaTemp();
             logger.info(format("\n pH-AFED Initialization:"));
@@ -161,6 +163,11 @@ public class MolecularDynamics implements Runnable, Terminatable {
             for (Adiabatic t : esvThermostats) {
                 t.setTargetTemperature(thetaTemp);
             }
+            // The lambda temperature is set by the Stochastic integrators, not the Adiabatic thermostats.
+            for (Stochastic s : esvIntegrators) {
+                s.setTemperature(thetaTemp);
+            }
+            logger.info(format(" Lambda Langevin integrators set to %.2f K", thetaTemp));
             double thetaMass = esv.getThetaMass();
             logger.info(format(" Lambda masses set to %.2f amu", thetaMass));
             for (SystemState state : esvStates) {
@@ -172,9 +179,15 @@ public class MolecularDynamics implements Runnable, Terminatable {
               esvThermostat.setTargetTemperature(mdTemp);
               logger.info(format("\n Standard ESV Thermostat:"));
               logger.info(format(" Setting up single thermostat at %.2f K", mdTemp));            }
+            if (esvIntegrator != null) {
+                esvIntegrator.setTemperature(mdTemp);
+            }
             if (esvState != null) {
                 double thetaMass = esv.getThetaMass();
-                esvState.setMass(new double[]{thetaMass});
+                // One mass per ESV in the shared state.
+                double[] masses = new double[esvState.getNumberOfVariables()];
+                Arrays.fill(masses, thetaMass);
+                esvState.setMass(masses);
                 logger.info(format(" Lambda mass set to %.2f amu", thetaMass));
               }
         }
@@ -341,6 +354,21 @@ public class MolecularDynamics implements Runnable, Terminatable {
    */
   private Adiabatic[] esvThermostats = null;
   /**
+   * Nose-Hoover chain velocities (1/ps) of each pH-AFED lambda (esv.thermostat nhc); null for
+   * Langevin. Applied for dt/2 before and after each velocity-Verlet lambda step.
+   */
+  private double[][] esvNHC = null;
+  /**
+   * Nose-Hoover chain time constant (ps), key esv.nhc.tau.
+   */
+  private double esvNHCTau = 0.5;
+  /**
+   * Nose-Hoover chain length, number of multiple time steps, and Suzuki-Yoshida weights.
+   */
+  private static final int NHC_LENGTH = 4;
+  private static final int NHC_STEPS = 4;
+  private static final double[] SUZUKI_YOSHIDA = {1.351207191959657, -1.702414383919315, 1.351207191959657};
+  /**
    * Frequency to print ESV info.
    */
   private int printEsvFrequency = -1;
@@ -461,10 +489,6 @@ public class MolecularDynamics implements Runnable, Terminatable {
     if (properties.containsKey("randomseed")) {
       thermostat.setRandomSeed(properties.getInt("randomseed", 0));
     }
-
-    if (potential instanceof ExtendedSystem) {
-      ExtendedSystem esv = (ExtendedSystem) potential;
-  }
 
     // For Stochastic dynamics, center of mass motion will not be removed.
     if (integrator instanceof Stochastic) {
@@ -612,16 +636,33 @@ public class MolecularDynamics implements Runnable, Terminatable {
         double thetaMass = esvSystem.getThetaMass();
         lambdaTemperatureStats = new RunningStatistics[esvStates.length];
 
+        String esvThermostatType = properties.getString("esv.thermostat", "langevin").trim().toLowerCase();
+        boolean useNHC = esvThermostatType.equals("nhc") || esvThermostatType.equals("nose-hoover");
+        if (useNHC) {
+          esvNHCTau = properties.getDouble("esv.nhc.tau", 0.5);
+          esvNHC = new double[esvStates.length][NHC_LENGTH];
+          logger.info(format(" pH-AFED lambda thermostat: Nose-Hoover chain (length %d, tau = %.3f ps);"
+              + " lambda Langevin friction set to 0.", NHC_LENGTH, esvNHCTau));
+        } else if (!esvThermostatType.equals("langevin")) {
+          logger.severe(format(" Unknown esv.thermostat %s (use langevin or nhc).", esvThermostatType));
+        }
+
         for (int i = 0; i < esvStates.length; i++) {
           lambdaTemperatureStats[i] = new RunningStatistics();
 
            // Each pH-AFED SystemState holds 1 variable.
            esvStates[i].setMass(new double[]{thetaMass});            
            double friction = (frictions != null && i < frictions.length) ? frictions[i] : 0.0;
+           if (useNHC) {
+             // Without friction the Stochastic integrator reduces to velocity Verlet.
+             friction = 0.0;
+           }
 
             Stochastic integrator = new Stochastic(friction, esvStates[i]);
+            integrator.setTemperature(esvSystem.getThetaTemp());
             if (properties.containsKey("randomseed")) {
-                integrator.setRandomSeed(properties.getInt("randomseed", 0));
+                // A distinct seed per lambda, so their noise is uncorrelated.
+                integrator.setRandomSeed(properties.getInt("randomseed", 0) + 1 + i);
             }
             this.esvIntegrators.add(integrator);
             this.esvThermostats[i] = new Adiabatic(esvStates[i], potential.getVariableTypes());
@@ -650,6 +691,10 @@ public class MolecularDynamics implements Runnable, Terminatable {
         this.esvIntegrator = new Stochastic(friction, esvState);
         if (properties.containsKey("randomseed")) {
             esvIntegrator.setRandomSeed(properties.getInt("randomseed", 0));
+        }
+        // Apply ESV charge constraints, if any.
+        if (!esvSystem.getConstraints().isEmpty()) {
+            esvIntegrator.addConstraints(esvSystem.getConstraints());
         }
         this.esvThermostat = new Adiabatic(esvState, potential.getVariableTypes());
         this.esvThermostat.setRemoveCenterOfMassMotion(false); 
@@ -1249,6 +1294,48 @@ public class MolecularDynamics implements Runnable, Terminatable {
   }
 
   /**
+   * Propagate the Nose-Hoover chain of pH-AFED lambda i for dt/2 and scale its velocity
+   * (Martyna, Tuckerman, Tobias &amp; Klein, Mol. Phys. 87, 1117 (1996)), with Q = kB*T*tau^2.
+   *
+   * @param i  Index of the lambda (ESV state).
+   * @param dt Full MD time step (ps).
+   */
+  private void lambdaNHCHalfStep(int i, double dt) {
+    double m = esvStates[i].getMass()[0];
+    if (m <= 0.0) {
+      return;
+    }
+    double[] v = esvStates[i].v();
+    double[] xi = esvNHC[i];
+    int n = xi.length;
+    double kT = kB * esvSystem.getThetaTemp();
+    double Q = kT * esvNHCTau * esvNHCTau;
+    for (int j = 0; j < NHC_STEPS; j++) {
+      for (double w : SUZUKI_YOSHIDA) {
+        double h = 0.5 * w * dt / NHC_STEPS;
+        xi[n - 1] += 0.5 * h * (Q * xi[n - 2] * xi[n - 2] - kT) / Q;
+        for (int k = n - 2; k >= 0; k--) {
+          updateChain(xi, k, h, m * v[0] * v[0], kT, Q);
+        }
+        v[0] *= exp(-h * xi[0]);
+        for (int k = 0; k < n - 1; k++) {
+          updateChain(xi, k, h, m * v[0] * v[0], kT, Q);
+        }
+        xi[n - 1] += 0.5 * h * (Q * xi[n - 2] * xi[n - 2] - kT) / Q;
+      }
+    }
+  }
+
+  /**
+   * Update chain velocity k over a sub-step h; mv2 is twice the lambda kinetic energy.
+   */
+  private static void updateChain(double[] xi, int k, double h, double mv2, double kT, double Q) {
+    double s = exp(-0.25 * h * xi[k + 1]);
+    double g = (k == 0) ? (mv2 - kT) / Q : (Q * xi[k - 1] * xi[k - 1] - kT) / Q;
+    xi[k] = (xi[k] * s + 0.5 * h * g) * s;
+  }
+
+  /**
    * Report lambda temperatures and diagnostics for ESV variables.
    */
   private void reportLambdaTemperatures(long step) {
@@ -1379,12 +1466,11 @@ public class MolecularDynamics implements Runnable, Terminatable {
     if (integrator instanceof Stochastic stochastic) {
       stochastic.setTemperature(targetTemperature);
     }
-    if (potential instanceof ExtendedSystem esv) {
-      esv.setTemperature(targetTemperature);
-    }
-    // pH-AFED INITIALIZATION:
-    if (potential instanceof ExtendedSystem) {
-        initPhAFED();
+    // The pH bias (kT ln10) uses the physical temperature.
+    if (esvSystem != null) {
+      esvSystem.setTemperature(targetTemperature);
+      // pH-AFED INITIALIZATION:
+      initPhAFED();
     }
 
     // Set the step size.
@@ -1479,9 +1565,11 @@ private void initializeEnergies() {
         } else {
             // Single ESV state
             if (esvState != null) {
-                double[] a = esvState.a();       // length 1
+                double[] a = esvState.a();       // length nESVs
                 double[] mass = esvState.getMass();
-                a[0] = -KCAL_TO_GRAM_ANG2_PER_PS2 * gradESV[0] / mass[0];
+                for (int i = 0; i < esvState.getNumberOfVariables(); i++) {
+                    a[i] = -KCAL_TO_GRAM_ANG2_PER_PS2 * gradESV[i] / mass[i];
+                }
             }
         }
     }
@@ -1752,6 +1840,11 @@ private void initializeEnergies() {
       integrator.preForce(potential);
       if (esvSystem != null) {
         if (esvSystem.isPhAFED()) {
+          if (esvNHC != null) {
+            for (int i = 0; i < esvStates.length; i++) {
+              lambdaNHCHalfStep(i, dt);
+            }
+          }
           for (Stochastic integrator : esvIntegrators) {
             integrator.preForce(potential);
           }
@@ -1784,6 +1877,11 @@ private void initializeEnergies() {
             logger.fine(String.format("pH-AFED Integrator %d applying dEdL: %12.6f", i, dEdL[i]));
             // Each pH-AFED ESV integrator controls exactly 1 DOF; pass its 1-component force.
             esvIntegrators.get(i).postForce(new double[]{ dEdL[i] });
+          }
+          if (esvNHC != null) {
+            for (int i = 0; i < esvStates.length; i++) {
+              lambdaNHCHalfStep(i, dt);
+            }
           }
         } else {
           logger.fine(String.format("Standard ESV applying dEdL: %12.6f", dEdL[0]));
